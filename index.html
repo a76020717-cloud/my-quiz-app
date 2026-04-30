@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>클라우드 모의고사 - 전체 모의고사 추가</title>
+    <title>클라우드 모의고사 - 분리형 전체 모의고사</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
@@ -19,9 +19,11 @@
         .subject-btn { padding: 12px 20px; font-weight: bold; color: white; background-color: #3498db; border: none; border-radius: 5px; cursor: pointer; transition: 0.2s; }
         .subject-btn:hover { background-color: #2980b9; }
         
-        /* ★ 전체 모의고사 버튼 강조 디자인 추가 ★ */
-        .all-btn { width: 100%; background-color: #e74c3c; font-size: 1.1em; margin-bottom: 10px; }
-        .all-btn:hover { background-color: #c0392b; }
+        /* ★ 두 가지 통합 모의고사 버튼 색상 구분 ★ */
+        .all-btn-major { width: 100%; background-color: #8e44ad; font-size: 1.1em; margin-bottom: 5px; }
+        .all-btn-major:hover { background-color: #732d91; }
+        .all-btn-law { width: 100%; background-color: #e67e22; font-size: 1.1em; margin-bottom: 15px; }
+        .all-btn-law:hover { background-color: #d35400; }
 
         .quiz-card { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .statement-box { border: 2px solid #bdc3c7; padding: 15px; margin: 15px 0; background-color: #fdfdfd; border-radius: 5px; white-space: pre-wrap; line-height: 1.6; color: #2c3e50; }
@@ -61,9 +63,11 @@
     </div>
 
     <div id="subjectMenu" class="subject-menu">
-        <!-- ★ 추가된 전체 모의고사 버튼 ★ -->
-        <button class="subject-btn all-btn" onclick="loadAllSubjects()">🔥 전체 과목 종합 모의고사 (20문제) 🔥</button>
+        <!-- ★ 나뉘어진 2개의 통합 모의고사 버튼 ★ -->
+        <button class="subject-btn all-btn-major" onclick="loadGroupExam('major', '전공')">✈️ 전공 통합 모의고사 (관제절차+업무기준 / 20문제)</button>
+        <button class="subject-btn all-btn-law" onclick="loadGroupExam('law', '항공법')">⚖️ 항공법 종합 모의고사 (나머지 7과목 / 20문제)</button>
 
+        <!-- 기존 개별 버튼 -->
         <button class="subject-btn" onclick="loadSubject('공항시설법_8급킬러_100선.csv', '공항시설법')">공항시설법</button>
         <button class="subject-btn" onclick="loadSubject('항공4법_통합연계_8급킬러_100선.csv', '항공4법 통합연계')">항공4법 통합연계</button>
         <button class="subject-btn" onclick="loadSubject('항공교통관제절차_8급킬러_100선.csv', '항공교통관제절차')">항공교통관제절차</button>
@@ -81,6 +85,7 @@
     <button id="scrollTopBtn" onclick="scrollToTop()">⬆️</button>
 
     <script>
+        // ★ 본인의 firebaseConfig로 덮어쓰세요!
         const firebaseConfig = {
             apiKey: "AIzaSyDJ5XB2tgGcF-qZfiGmo7rrNEruJAp1ZhA",
             authDomain: "quiz-app-85212.firebaseapp.com",
@@ -96,12 +101,15 @@
         let currentUser = null;
         let cloudLogs = [];
 
-        // ★ 전체 모의고사를 위한 파일 목록 배열 추가 ★
-        const allFileNames = [
+        // ★ 그룹별 파일 목록 정의 ★
+        const majorFiles = [
+            '항공교통관제절차_8급킬러_100선.csv',
+            '항공교통업무기준_8급킬러_100선.csv'
+        ];
+
+        const lawFiles = [
             '공항시설법_8급킬러_100선.csv',
             '항공4법_통합연계_8급킬러_100선.csv',
-            '항공교통관제절차_8급킬러_100선.csv',
-            '항공교통업무기준_8급킬러_100선.csv',
             '항공보안법_8급킬러_100선.csv',
             '항공사업법_8급킬러_100선.csv',
             '항공안전법_2탄_8급킬러_100선.csv',
@@ -235,27 +243,32 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // 개별 과목 불러오기
+        // 1. 단일 과목 불러오기
         function loadSubject(f, s) {
             document.getElementById('historyContainer').style.display = 'none';
             document.getElementById('quizHeader').innerText = '';
             document.getElementById('quizContainer').innerHTML = '<div style="text-align:center; padding:20px; font-weight:bold;">파일을 불러오고 있습니다... ⏳</div>';
             
             fetch(f).then(res => res.text()).then(txt => {
-                Papa.parse(txt, { header: true, skipEmptyLines: true, complete: res => renderQuiz(res.data, s) });
+                Papa.parse(txt, { header: true, skipEmptyLines: true, complete: res => {
+                    let qList = res.data.filter(r => r['문제'] && r['보기1']).sort(() => Math.random() - 0.5).slice(0, 20);
+                    renderQuiz(qList, s);
+                }});
             }).catch(e => {
                 document.getElementById('quizContainer').innerHTML = '';
                 alert(`[오류] '${f}' 파일을 찾을 수 없습니다.`);
             });
         }
 
-        // ★ 전체 과목 종합 불러오기 로직 추가 ★
-        function loadAllSubjects() {
+        // 2. ★ 그룹 모의고사 (과목당 최소 1문제 보장 로직) ★
+        function loadGroupExam(groupType, groupName) {
             document.getElementById('historyContainer').style.display = 'none';
             document.getElementById('quizHeader').innerText = '';
-            document.getElementById('quizContainer').innerHTML = '<div style="text-align:center; padding:20px; font-weight:bold; color:#e74c3c;">9개의 전체 파일을 불러오고 있습니다... ⏳<br><small>데이터가 많아 약간의 시간이 소요될 수 있습니다.</small></div>';
+            document.getElementById('quizContainer').innerHTML = `<div style="text-align:center; padding:20px; font-weight:bold; color:#e74c3c;">[${groupName}] 과목들을 조합하여 문제를 출제 중입니다... ⏳</div>`;
 
-            const fetchPromises = allFileNames.map(fileName => {
+            const targetFiles = (groupType === 'major') ? majorFiles : lawFiles;
+
+            const fetchPromises = targetFiles.map(fileName => {
                 return fetch(fileName).then(response => {
                     if (!response.ok) throw new Error(fileName);
                     return response.text();
@@ -264,14 +277,35 @@
 
             Promise.all(fetchPromises)
                 .then(csvTexts => {
-                    let combinedData = [];
-                    
+                    let finalQuestions = []; // 최종 20문제가 담길 배열
+                    let remainingPool = []; // 각 파일에서 1문제씩 뽑고 남은 문제들이 모일 잉여 풀
+
                     csvTexts.forEach(csvText => {
                         const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-                        combinedData = combinedData.concat(parsed.data);
+                        // 해당 파일의 유효한 문제만 추출 후 무작위로 섞음
+                        let validQuestions = parsed.data.filter(r => r['문제'] && r['보기1'] && r['정답']);
+                        validQuestions.sort(() => Math.random() - 0.5);
+                        
+                        // ★ 조건 달성: 섞인 문제 중 맨 앞 1개를 무조건 finalQuestions에 담기 ★
+                        if(validQuestions.length > 0) {
+                            finalQuestions.push(validQuestions.pop());
+                        }
+
+                        // 뽑고 남은 나머지 문제들은 잉여 풀에 전부 집어넣음
+                        remainingPool = remainingPool.concat(validQuestions);
                     });
 
-                    renderQuiz(combinedData, '전체 과목 종합');
+                    // 20문제를 맞추기 위해 잉여 풀에서 더 뽑아야 할 개수 계산 (전공은 18개, 법은 13개)
+                    const neededCount = 20 - finalQuestions.length;
+                    
+                    // 잉여 풀을 무작위로 섞은 뒤 필요한 개수만큼 가져와서 최종 배열에 합침
+                    remainingPool.sort(() => Math.random() - 0.5);
+                    finalQuestions = finalQuestions.concat(remainingPool.slice(0, neededCount));
+
+                    // 맨 처음에 뽑았던 '필수 1문제'들이 항상 1번부터 등장하지 않도록 최종 배열을 마지막으로 다시 섞음
+                    finalQuestions.sort(() => Math.random() - 0.5);
+
+                    renderQuiz(finalQuestions, `${groupName} 통합`);
                 })
                 .catch(error => {
                     document.getElementById('quizContainer').innerHTML = '';
@@ -279,15 +313,14 @@
                 });
         }
 
-        function renderQuiz(data, s) {
-            let qList = data.filter(r => r['문제'] && r['보기1']).sort(() => Math.random() - 0.5).slice(0, 20);
-            
+        // 화면에 렌더링 및 채점 기능
+        function renderQuiz(qList, s) {
             if(qList.length === 0) {
                 document.getElementById('quizContainer').innerHTML = '퀴즈 데이터가 없습니다.';
                 return;
             }
 
-            document.getElementById('quizHeader').innerText = `📖 [${s}] 모의고사`;
+            document.getElementById('quizHeader').innerText = `📖 [${s}] 랜덤 모의고사 (총 ${qList.length}문제)`;
             const c = document.getElementById('quizContainer');
             c.innerHTML = '';
             
@@ -306,13 +339,13 @@
                 card.innerHTML += `<div class="explanation" id="exp_${i}"></div>`;
                 c.appendChild(card);
             });
+            
             const btn = document.createElement('button');
             btn.className = 'submit-btn'; btn.innerText = '제출 및 채점';
             c.appendChild(btn);
             
             btn.onclick = () => {
                 let score = 0, uAns = [];
-                // 답안 미체크 검증
                 let isAllChecked = true;
                 qList.forEach((r, i) => {
                     if (!document.querySelector(`input[name="q_${i}"]:checked`)) isAllChecked = false;
@@ -333,7 +366,7 @@
                 
                 db.collection("quizLogs").add({
                     uid: currentUser.uid, timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                    dateString: new Date().toLocaleString(), subject: s, correct: score, total: 20, score: score * 5,
+                    dateString: new Date().toLocaleString(), subject: s, correct: score, total: qList.length, score: score * 5,
                     questions: qList, userAnswers: uAns
                 });
                 alert(`채점 완료! 총 ${score * 5}점 입니다.\n결과가 클라우드에 저장되었습니다.`);
