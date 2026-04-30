@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>과목별 20문제 모의고사</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; background-color: #f4f7f6; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .top-menu { display: flex; justify-content: center; gap: 15px; margin-bottom: 20px; }
+        .history-btn { padding: 10px 15px; font-weight: bold; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .history-btn:hover { background: #2ecc71; }
+        .subject-menu { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 30px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .subject-btn { padding: 12px 20px; font-size: 1em; font-weight: bold; color: white; background-color: #3498db; border: none; border-radius: 5px; cursor: pointer; transition: background 0.3s; }
+        .subject-btn:hover { background-color: #2980b9; }
+        .quiz-header { font-size: 1.2em; font-weight: bold; margin-bottom: 20px; color: #2c3e50; text-align: center; }
+        .quiz-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .question { font-size: 1.1em; font-weight: bold; margin-bottom: 15px; line-height: 1.5; color: #333; }
+        .option { display: block; padding: 12px; margin: 8px 0; background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 5px; cursor: pointer; transition: all 0.2s; }
+        .option:hover { background: #e2e8f0; border-color: #cbd5e1; }
+        input[type="radio"] { margin-right: 10px; cursor: pointer; transform: scale(1.2); }
+        .explanation { display: none; margin-top: 15px; padding: 15px; background: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 4px; line-height: 1.5; font-size: 0.95em; }
+        .correct-text { color: #16a34a; font-weight: bold; margin-bottom: 8px; font-size: 1.1em; }
+        .wrong-text { color: #dc2626; font-weight: bold; margin-bottom: 8px; font-size: 1.1em; }
+        .submit-btn { width: 100%; padding: 15px; font-size: 1.2em; font-weight: bold; color: white; background-color: #e74c3c; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; transition: background 0.3s; }
+        .submit-btn:hover { background-color: #c0392b; }
+        .result-box { display: none; text-align: center; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-top: 30px; border-top: 5px solid #3498db; }
+        .score-text { font-size: 2em; font-weight: bold; color: #2c3e50; margin-bottom: 10px; }
+        .score-highlight { color: #e74c3c; font-size: 1.2em; }
+        .loading { text-align: center; font-size: 1.2em; color: #666; display: none; margin-bottom: 20px; }
+        
+        /* 기록 보기 창 스타일 */
+        #historyContainer { display: none; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .history-item { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .history-item:last-child { border-bottom: none; }
+        .history-date { font-size: 0.9em; color: #7f8c8d; }
+        .history-score { font-weight: bold; color: #2c3e50; }
+        .clear-btn { background: #95a5a6; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.9em; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>🎯 온라인 모의고사 웹사이트</h1>
+        <p>원하는 과목을 선택하면 랜덤으로 20문제가 출제됩니다.</p>
+    </div>
+
+    <!-- 내 기록 보기 버튼 추가 -->
+    <div class="top-menu">
+        <button class="history-btn" onclick="toggleHistory()">📋 내 학습 기록 보기</button>
+    </div>
+
+    <!-- 기록이 표시될 영역 -->
+    <div id="historyContainer">
+        <h3 style="margin-top: 0;">나의 퀴즈 응시 로그</h3>
+        <div id="historyList"></div>
+        <button class="clear-btn" onclick="clearHistory()">기록 전체 삭제</button>
+    </div>
+
+    <div class="subject-menu">
+        <button class="subject-btn" onclick="loadSubject('공항시설법_8급킬러_100선.csv', '공항시설법')">공항시설법</button>
+        <button class="subject-btn" onclick="loadSubject('과목2파일이름.csv', '과목 2')">과목 2</button>
+        <!-- 필요에 따라 버튼 추가/수정 -->
+    </div>
+
+    <div id="loading" class="loading">서버에서 문제를 불러오는 중입니다... ⏳</div>
+    <div id="quizHeader" class="quiz-header"></div>
+    <div id="quizContainer"></div>
+
+    <script>
+        // 1. 학습 기록 저장 함수
+        function saveLog(subject, correctCount, totalCount, score) {
+            const now = new Date();
+            const dateString = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+            
+            const logEntry = {
+                date: dateString,
+                subject: subject,
+                correct: correctCount,
+                total: totalCount,
+                score: score
+            };
+
+            // 기존 기록 불러오기 (없으면 빈 배열)
+            let history = JSON.parse(localStorage.getItem('quizLogs')) || [];
+            history.unshift(logEntry); // 최신 기록을 맨 앞에 추가
+            
+            // 다시 로컬 스토리지에 저장
+            localStorage.setItem('quizLogs', JSON.stringify(history));
+        }
+
+        // 2. 학습 기록 보여주기/숨기기 함수
+        function toggleHistory() {
+            const container = document.getElementById('historyContainer');
+            const listDiv = document.getElementById('historyList');
+            
+            if (container.style.display === 'block') {
+                container.style.display = 'none';
+                return;
+            }
+
+            let history = JSON.parse(localStorage.getItem('quizLogs')) || [];
+            
+            if (history.length === 0) {
+                listDiv.innerHTML = '<p style="color:#7f8c8d;">아직 응시한 기록이 없습니다.</p>';
+            } else {
+                listDiv.innerHTML = '';
+                history.forEach(log => {
+                    const item = document.createElement('div');
+                    item.className = 'history-item';
+                    item.innerHTML = `
+                        <div>
+                            <span class="history-date">${log.date}</span><br>
+                            <strong>[${log.subject}]</strong>
+                        </div>
+                        <div class="history-score">
+                            ${log.correct} / ${log.total} 정답 <br>
+                            <span style="color:#e74c3c;">${log.score}점</span>
+                        </div>
+                    `;
+                    listDiv.appendChild(item);
+                });
+            }
+            container.style.display = 'block';
+        }
+
+        // 3. 기록 전체 삭제 함수
+        function clearHistory() {
+            if(confirm('정말 모든 학습 기록을 삭제하시겠습니까?')) {
+                localStorage.removeItem('quizLogs');
+                toggleHistory(); // 닫기
+                setTimeout(toggleHistory, 100); // 다시 열어서 빈 화면 보여주기
+            }
+        }
+
+        // --- 기존 퀴즈 로직 ---
+        function loadSubject(fileName, subjectName) {
+            const container = document.getElementById('quizContainer');
+            const header = document.getElementById('quizHeader');
+            const loading = document.getElementById('loading');
+            
+            container.innerHTML = '';
+            header.innerHTML = '';
+            document.getElementById('historyContainer').style.display = 'none'; // 문제 풀때 기록창 닫기
+            loading.style.display = 'block'; 
+
+            fetch(fileName)
+                .then(response => {
+                    if (!response.ok) throw new Error("파일 없음");
+                    return response.text();
+                })
+                .then(csvText => {
+                    Papa.parse(csvText, {
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: function(results) {
+                            processAndRenderQuiz(results.data, subjectName);
+                            loading.style.display = 'none';
+                        }
+                    });
+                })
+                .catch(error => {
+                    loading.style.display = 'none';
+                    alert(`[오류] '${fileName}' 파일을 불러오지 못했습니다.`);
+                });
+        }
+
+        function processAndRenderQuiz(data, subjectName) {
+            let validQuestions = data.filter(row => row['문제'] && row['보기1'] && row['정답']);
+
+            if (validQuestions.length === 0) {
+                alert("유효한 데이터가 없습니다. CSV 양식을 확인해주세요.");
+                return;
+            }
+
+            for (let i = validQuestions.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [validQuestions[i], validQuestions[j]] = [validQuestions[j], validQuestions[i]];
+            }
+
+            const questionCount = Math.min(20, validQuestions.length);
+            const selectedQuestions = validQuestions.slice(0, questionCount);
+
+            const header = document.getElementById('quizHeader');
+            header.innerText = `📖 [${subjectName}] 모의고사 (총 ${questionCount}문제)`;
+
+            const container = document.getElementById('quizContainer');
+
+            selectedQuestions.forEach((row, index) => {
+                const card = document.createElement('div');
+                card.className = 'quiz-card';
+
+                const question = document.createElement('div');
+                question.className = 'question';
+                question.innerText = `${index + 1}. ${row['문제']}`;
+                card.appendChild(question);
+
+                const expDiv = document.createElement('div');
+                expDiv.className = 'explanation';
+                expDiv.id = `explanation_${index}`;
+                
+                for (let i = 1; i <= 4; i++) {
+                    if (!row[`보기${i}`]) continue;
+
+                    const label = document.createElement('label');
+                    label.className = 'option';
+                    
+                    const radio = document.createElement('input');
+                    radio.type = 'radio';
+                    radio.name = `question_${index}`;
+                    radio.value = i;
+
+                    label.appendChild(radio);
+                    label.appendChild(document.createTextNode(row[`보기${i}`]));
+                    card.appendChild(label);
+                }
+
+                card.appendChild(expDiv);
+                container.appendChild(card);
+            });
+
+            const submitBtn = document.createElement('button');
+            submitBtn.className = 'submit-btn';
+            submitBtn.innerText = '답안 제출 및 채점하기';
+            container.appendChild(submitBtn);
+
+            const resultBox = document.createElement('div');
+            resultBox.className = 'result-box';
+            resultBox.id = 'resultBox';
+            container.appendChild(resultBox);
+
+            submitBtn.onclick = () => {
+                let correctCount = 0;
+
+                selectedQuestions.forEach((row, index) => {
+                    const selectedRadio = document.querySelector(`input[name="question_${index}"]:checked`);
+                    const expDiv = document.getElementById(`explanation_${index}`);
+                    
+                    let isCorrect = false;
+                    let statusText = '❌ 선택 안 함';
+
+                    if (selectedRadio) {
+                        isCorrect = parseInt(selectedRadio.value) === parseInt(row['정답']);
+                        statusText = isCorrect ? '⭕ 정답입니다!' : '❌ 오답입니다.';
+                        if (isCorrect) correctCount++;
+                    }
+
+                    expDiv.innerHTML = `
+                        <div class="${isCorrect ? 'correct-text' : 'wrong-text'}">
+                            ${statusText} (정답: ${row['정답']}번)
+                        </div>
+                        <div><strong>[해설]</strong><br>${row['해설'] || '해설이 제공되지 않았습니다.'}</div>
+                    `;
+                    expDiv.style.display = 'block';
+
+                    const allRadios = document.querySelectorAll(`input[name="question_${index}"]`);
+                    allRadios.forEach(r => r.disabled = true);
+                });
+
+                const totalScore = correctCount * 5;
+                const maxScore = questionCount * 5;
+
+                // ★ 채점이 끝나면 로그 저장 함수 실행
+                saveLog(subjectName, correctCount, questionCount, totalScore);
+
+                resultBox.innerHTML = `
+                    <div class="score-text">🎉 최종 점수: <span class="score-highlight">${totalScore}점</span> / ${maxScore}점</div>
+                    <p>총 ${questionCount}문제 중 <strong>${correctCount}문제</strong>를 맞혔습니다.</p>
+                `;
+                resultBox.style.display = 'block';
+                submitBtn.style.display = 'none'; 
+
+                resultBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            };
+        }
+    </script>
+</body>
+</html>
