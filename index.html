@@ -3,293 +3,189 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>과목별 20문제 모의고사</title>
+    <title>클라우드 동기화 모의고사</title>
+    <!-- 1. 필요한 라이브러리 불러오기 (PapaParse & 파이어베이스) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; background-color: #f4f7f6; }
         .header { text-align: center; margin-bottom: 20px; }
-        .top-menu { display: flex; justify-content: center; gap: 15px; margin-bottom: 20px; }
-        .history-btn { padding: 10px 15px; font-weight: bold; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; transition: background 0.2s; }
-        .history-btn:hover { background: #2ecc71; }
-        .subject-menu { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 30px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .subject-btn { padding: 12px 20px; font-size: 1em; font-weight: bold; color: white; background-color: #3498db; border: none; border-radius: 5px; cursor: pointer; transition: background 0.3s; }
-        .subject-btn:hover { background-color: #2980b9; }
-        .quiz-header { font-size: 1.2em; font-weight: bold; margin-bottom: 20px; color: #2c3e50; text-align: center; }
-        .quiz-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .question { font-size: 1.1em; font-weight: bold; margin-bottom: 15px; line-height: 1.5; color: #333; }
-        .option { display: block; padding: 12px; margin: 8px 0; background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 5px; cursor: pointer; transition: all 0.2s; }
-        .option:hover { background: #e2e8f0; border-color: #cbd5e1; }
-        input[type="radio"] { margin-right: 10px; cursor: pointer; transform: scale(1.2); }
-        .explanation { display: none; margin-top: 15px; padding: 15px; background: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 4px; line-height: 1.5; font-size: 0.95em; }
-        .correct-text { color: #16a34a; font-weight: bold; margin-bottom: 8px; font-size: 1.1em; }
-        .wrong-text { color: #dc2626; font-weight: bold; margin-bottom: 8px; font-size: 1.1em; }
-        .submit-btn { width: 100%; padding: 15px; font-size: 1.2em; font-weight: bold; color: white; background-color: #e74c3c; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; transition: background 0.3s; }
-        .submit-btn:hover { background-color: #c0392b; }
-        .back-btn { background-color: #95a5a6; padding: 10px 20px; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-bottom: 20px; }
-        .back-btn:hover { background-color: #7f8c8d; }
-        .result-box { display: none; text-align: center; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-top: 30px; border-top: 5px solid #3498db; }
-        .score-text { font-size: 2em; font-weight: bold; color: #2c3e50; margin-bottom: 10px; }
-        .score-highlight { color: #e74c3c; font-size: 1.2em; }
-        .loading { text-align: center; font-size: 1.2em; color: #666; display: none; margin-bottom: 20px; }
-        
-        /* 기록 보기 창 스타일 */
-        #historyContainer { display: none; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .history-item { padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        .history-item:last-child { border-bottom: none; }
-        .history-date { font-size: 0.9em; color: #7f8c8d; }
-        .history-score { font-weight: bold; color: #2c3e50; text-align: right; }
-        .review-btn { background: #34495e; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85em; margin-top: 8px; }
-        .review-btn:hover { background: #2c3e50; }
-        .clear-btn { background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-size: 0.9em; margin-top: 15px; width: 100%; font-weight: bold; }
-
-        /* 맨 위로 가기 버튼 */
-        #scrollTopBtn {
-            display: none; position: fixed; bottom: 30px; right: 30px; z-index: 99; font-size: 20px; 
-            border: none; outline: none; background-color: #2c3e50; color: white; cursor: pointer; 
-            padding: 15px; border-radius: 50%; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: transform 0.2s;
-        }
-        #scrollTopBtn:hover { background-color: #1a252f; transform: scale(1.1); }
+        .auth-box { text-align: center; background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .login-btn { background: #4285F4; color: white; border: none; padding: 10px 20px; font-weight: bold; border-radius: 5px; cursor: pointer; }
+        .logout-btn { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; margin-left: 10px; }
+        .subject-menu { display: none; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 30px; }
+        .subject-btn { padding: 12px 20px; font-weight: bold; color: white; background-color: #3498db; border: none; border-radius: 5px; cursor: pointer; }
+        .quiz-card { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .option { display: block; padding: 10px; margin: 5px 0; background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 5px; cursor: pointer; }
+        .explanation { display: none; margin-top: 15px; padding: 15px; background: #f0fdf4; border-left: 4px solid #22c55e; }
+        .submit-btn { width: 100%; padding: 15px; background-color: #e74c3c; color: white; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; }
+        .history-container { display: none; background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .history-item { padding: 15px; border-bottom: 1px solid #eee; }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <h1>🎯 온라인 모의고사 웹사이트</h1>
-        <p>원하는 과목을 선택하면 랜덤으로 20문제가 출제됩니다.</p>
+        <h1>☁️ 클라우드 동기화 모의고사</h1>
     </div>
 
-    <!-- 내 기록 보기 버튼 -->
-    <div class="top-menu">
-        <button class="history-btn" onclick="toggleHistory()">📋 내 학습 기록 및 오답 노트</button>
+    <!-- 로그인 영역 -->
+    <div class="auth-box" id="authBox">
+        <p id="userInfo">로그인이 필요합니다.</p>
+        <button id="loginBtn" class="login-btn" onclick="signIn()">구글 계정으로 로그인</button>
+        <button id="logoutBtn" class="logout-btn" style="display:none;" onclick="signOut()">로그아웃</button>
+        <button id="historyBtn" class="login-btn" style="display:none; background:#27ae60; margin-top:10px;" onclick="loadHistory()">📋 내 학습 기록 보기</button>
     </div>
 
-    <!-- 기록이 표시될 영역 -->
-    <div id="historyContainer">
-        <h3 style="margin-top: 0; text-align: center;">나의 퀴즈 응시 로그</h3>
-        <div id="historyList"></div>
-        <button class="clear-btn" onclick="clearHistory()">기록 전체 삭제</button>
+    <!-- 학습 기록 표시 영역 -->
+    <div id="historyContainer" class="history-container">
+        <h3>나의 클라우드 기록</h3>
+        <div id="historyList">기록을 불러오는 중...</div>
+        <button onclick="document.getElementById('historyContainer').style.display='none'" style="margin-top:10px;">닫기</button>
     </div>
 
-    <!-- 과목 8개 선택 버튼 -->
-    <div class="subject-menu">
+    <!-- 과목 선택 (로그인해야 보임) -->
+    <div id="subjectMenu" class="subject-menu">
         <button class="subject-btn" onclick="loadSubject('공항시설법_8급킬러_100선.csv', '공항시설법')">공항시설법</button>
-        <button class="subject-btn" onclick="loadSubject('항공4법_통합연계_8급킬러_100선.csv', '항공4법 통합연계')">항공4법 통합연계</button>
-        <button class="subject-btn" onclick="loadSubject('항공교통관제절차_8급킬러_100선.csv', '항공교통관제절차')">항공교통관제절차</button>
-        <button class="subject-btn" onclick="loadSubject('항공교통업무기준_8급킬러_100선.csv', '항공교통업무기준')">항공교통업무기준</button>
-        <button class="subject-btn" onclick="loadSubject('항공보안법_8급킬러_100선.csv', '항공보안법')">항공보안법</button>
-        <button class="subject-btn" onclick="loadSubject('항공사업법_8급킬러_100선.csv', '항공사업법')">항공사업법</button>
-        <button class="subject-btn" onclick="loadSubject('항공안전법_2탄_8급킬러_100선.csv', '항공안전법 2탄')">항공안전법 2탄</button>
         <button class="subject-btn" onclick="loadSubject('항공안전법_8급킬러_100선.csv', '항공안전법')">항공안전법</button>
+        <!-- 필요에 따라 나머지 버튼 추가 -->
     </div>
 
-    <div id="loading" class="loading">서버에서 문제를 불러오는 중입니다... ⏳</div>
-    <div id="quizHeader" class="quiz-header"></div>
+    <div id="quizHeader" style="font-weight:bold; font-size:1.2em; text-align:center; margin-bottom:20px;"></div>
     <div id="quizContainer"></div>
 
-    <!-- 맨 위로 가기 버튼 -->
-    <button id="scrollTopBtn" onclick="scrollToTop()" title="맨 위로 가기">⬆️</button>
-
     <script>
-      // --- 1. 학습 기록 저장 기능 (문제와 사용자 답안까지 모두 저장 + 구글 시트 전송) ---
-    function saveLog(subject, correctCount, totalCount, score, questions, userAnswers) {
-        const now = new Date();
-        const dateString = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-        
-        const logEntry = {
-            date: dateString,
-            subject: subject,
-            correct: correctCount,
-            total: totalCount,
-            score: score,
-            questions: questions, // 출제된 20문제 데이터
-            userAnswers: userAnswers // 사용자가 선택한 번호 배열
-        };
+        // ★★★ 1단계에서 복사한 본인의 firebaseConfig 값으로 덮어쓰세요! ★★★
+        const firebaseConfig = {
+  apiKey: "AIzaSyDJ5XB2tgGcF-qZfiGmo7rrNEruJAp1ZhA",
+  authDomain: "quiz-app-85212.firebaseapp.com",
+  projectId: "quiz-app-85212",
+  storageBucket: "quiz-app-85212.firebasestorage.app",
+  messagingSenderId: "828608639854",
+  appId: "1:828608639854:web:cdef24bdb0e4885be8477f"
+};
 
-        // 1. 내 기기(로컬 스토리지)에 오답노트용으로 저장 (기존과 동일)
-        let history = JSON.parse(localStorage.getItem('quizLogs')) || [];
-        history.unshift(logEntry); 
-        localStorage.setItem('quizLogs', JSON.stringify(history));
+        // 파이어베이스 초기화
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
 
-        // 2. 구글 스프레드시트로 점수 기록 보내기 (새로 추가된 부분)
-        // 주의: CORS 에러를 막기 위해 text/plain 방식을 사용합니다.
-        fetch('https://script.google.com/macros/s/AKfycbxSb1BlHiMKOxwBTnk1isNzzdKeClsqxlDbbCRjRZFUW5KXrTL8CY5iNkhsgpuT8xfY_A/exec', {
-            method: 'POST',
-            body: JSON.stringify({
+        let currentUser = null;
+
+        // 로그인 상태 감지 (화면 새로고침해도 유지됨)
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                currentUser = user;
+                document.getElementById('userInfo').innerText = `${user.displayName}님 환영합니다!`;
+                document.getElementById('loginBtn').style.display = 'none';
+                document.getElementById('logoutBtn').style.display = 'inline-block';
+                document.getElementById('historyBtn').style.display = 'inline-block';
+                document.getElementById('subjectMenu').style.display = 'flex'; // 메뉴 보이기
+            } else {
+                currentUser = null;
+                document.getElementById('userInfo').innerText = '로그인이 필요합니다.';
+                document.getElementById('loginBtn').style.display = 'inline-block';
+                document.getElementById('logoutBtn').style.display = 'none';
+                document.getElementById('historyBtn').style.display = 'none';
+                document.getElementById('subjectMenu').style.display = 'none'; // 메뉴 숨기기
+                document.getElementById('quizContainer').innerHTML = ''; // 문제 초기화
+            }
+        });
+
+        function signIn() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider).catch(error => alert("로그인 실패: " + error.message));
+        }
+
+        function signOut() {
+            auth.signOut();
+        }
+
+        // --- 클라우드에 기록 저장하기 ---
+        function saveLogToCloud(subject, correctCount, totalCount, score, questions, userAnswers) {
+            if (!currentUser) return;
+
+            // Firestore의 'quizLogs'라는 폴더(컬렉션)에 저장
+            db.collection("quizLogs").add({
+                uid: currentUser.uid, // 누구의 기록인지 식별
+                userName: currentUser.displayName,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                dateString: new Date().toLocaleString(),
                 subject: subject,
                 correct: correctCount,
                 total: totalCount,
-                score: score
-            }),
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-        }).then(() => console.log('구글 시트 전송 성공'))
-          .catch(e => console.log('구글 시트 전송 실패', e));
-    }
+                score: score,
+                questions: questions,
+                userAnswers: userAnswers
+            }).then(() => {
+                console.log("클라우드 저장 완료!");
+            }).catch(error => {
+                console.error("저장 오류:", error);
+            });
+        }
 
-        // --- 2. 학습 기록 목록 렌더링 ---
-        function toggleHistory() {
+        // --- 클라우드에서 기록 불러오기 ---
+        function loadHistory() {
+            if (!currentUser) return;
+            
             const container = document.getElementById('historyContainer');
             const listDiv = document.getElementById('historyList');
-            const quizContainer = document.getElementById('quizContainer');
-            const quizHeader = document.getElementById('quizHeader');
-            
-            // 문제 풀이 영역 숨기기
-            quizContainer.innerHTML = '';
-            quizHeader.innerHTML = '';
-
-            if (container.style.display === 'block') {
-                container.style.display = 'none';
-                return;
-            }
-
-            let history = JSON.parse(localStorage.getItem('quizLogs')) || [];
-            
-            if (history.length === 0) {
-                listDiv.innerHTML = '<p style="color:#7f8c8d; text-align:center;">아직 응시한 기록이 없습니다.</p>';
-            } else {
-                listDiv.innerHTML = '';
-                history.forEach((log, index) => {
-                    const item = document.createElement('div');
-                    item.className = 'history-item';
-                    item.innerHTML = `
-                        <div>
-                            <span class="history-date">${log.date}</span><br>
-                            <strong style="font-size: 1.1em;">[${log.subject}]</strong><br>
-                            <button class="review-btn" onclick="reviewQuiz(${index})">🔍 상세 오답 노트 보기</button>
-                        </div>
-                        <div class="history-score">
-                            ${log.correct} / ${log.total} 정답 <br>
-                            <span style="color:#e74c3c; font-size:1.2em;">${log.score}점</span>
-                        </div>
-                    `;
-                    listDiv.appendChild(item);
-                });
-            }
             container.style.display = 'block';
+            listDiv.innerHTML = '데이터를 불러오는 중... ⏳';
+
+            // 현재 로그인한 사람(uid)의 기록만 시간 역순으로 가져오기
+            db.collection("quizLogs")
+              .where("uid", "==", currentUser.uid)
+              .orderBy("timestamp", "desc")
+              .get()
+              .then(querySnapshot => {
+                  if (querySnapshot.empty) {
+                      listDiv.innerHTML = '<p>아직 응시한 기록이 없습니다.</p>';
+                      return;
+                  }
+
+                  listDiv.innerHTML = '';
+                  querySnapshot.forEach(doc => {
+                      const log = doc.data();
+                      const item = document.createElement('div');
+                      item.className = 'history-item';
+                      item.innerHTML = `
+                          <strong>[${log.subject}]</strong> (${log.dateString})<br>
+                          점수: <span style="color:#e74c3c; font-weight:bold;">${log.score}점</span> 
+                          (${log.correct} / ${log.total} 정답)
+                      `;
+                      listDiv.appendChild(item);
+                  });
+              })
+              .catch(error => {
+                  console.error("불러오기 오류:", error);
+                  listDiv.innerHTML = '기록을 가져오는 중 오류가 발생했습니다. (보안 규칙 설정을 확인해주세요)';
+              });
         }
 
-        function clearHistory() {
-            if(confirm('정말 모든 학습 기록을 삭제하시겠습니까? (복구할 수 없습니다)')) {
-                localStorage.removeItem('quizLogs');
-                toggleHistory();
-                setTimeout(toggleHistory, 100); 
-            }
-        }
-
-        // --- 3. 과거 기록 상세 리뷰 기능 (오답 노트) ---
-        function reviewQuiz(logIndex) {
-            let history = JSON.parse(localStorage.getItem('quizLogs')) || [];
-            const log = history[logIndex];
-            if (!log || !log.questions) {
-                alert('과거 버전의 기록이거나 데이터가 손상되었습니다.');
-                return;
-            }
-
-            document.getElementById('historyContainer').style.display = 'none';
-            const container = document.getElementById('quizContainer');
-            const header = document.getElementById('quizHeader');
-            
-            header.innerHTML = `<div style="color:#7f8c8d; font-size:0.8em; margin-bottom:5px;">${log.date} 응시 기록</div>📖 [${log.subject}] 오답 노트 리뷰`;
-            container.innerHTML = `<div style="text-align:center;"><button class="back-btn" onclick="toggleHistory()">◀ 기록 목록으로 돌아가기</button></div>`;
-
-            log.questions.forEach((row, index) => {
-                const card = document.createElement('div');
-                card.className = 'quiz-card';
-
-                const question = document.createElement('div');
-                question.className = 'question';
-                question.innerText = `${index + 1}. ${row['문제']}`;
-                card.appendChild(question);
-
-                const expDiv = document.createElement('div');
-                expDiv.className = 'explanation';
-                
-                const userAnswer = log.userAnswers[index]; // 사용자가 골랐던 답
-                const isCorrect = userAnswer === parseInt(row['정답']);
-                
-                for (let i = 1; i <= 4; i++) {
-                    if (!row[`보기${i}`]) continue;
-
-                    const label = document.createElement('label');
-                    label.className = 'option';
-                    
-                    const radio = document.createElement('input');
-                    radio.type = 'radio';
-                    radio.disabled = true; // 리뷰 모드이므로 클릭 불가
-                    
-                    if (userAnswer === i) {
-                        radio.checked = true; // 사용자가 선택했던 답 체크 표시
-                    }
-
-                    // 정답은 초록색, 오답은 빨간색으로 하이라이트
-                    if (i === parseInt(row['정답'])) {
-                        label.style.border = '2px solid #22c55e';
-                        label.style.background = '#f0fdf4';
-                    } else if (userAnswer === i && !isCorrect) {
-                        label.style.border = '2px solid #ef4444';
-                        label.style.background = '#fef2f2';
-                    }
-
-                    label.appendChild(radio);
-                    label.appendChild(document.createTextNode(row[`보기${i}`]));
-                    card.appendChild(label);
-                }
-
-                let statusText = '❌ 선택 안 함';
-                if (userAnswer) {
-                    statusText = isCorrect ? '⭕ 정답입니다!' : '❌ 오답입니다.';
-                }
-
-                expDiv.innerHTML = `
-                    <div class="${isCorrect ? 'correct-text' : 'wrong-text'}">
-                        ${statusText} (정답: ${row['정답']}번)
-                    </div>
-                    <div><strong>[해설]</strong><br>${row['해설'] || '해설이 제공되지 않았습니다.'}</div>
-                `;
-                expDiv.style.display = 'block';
-
-                card.appendChild(expDiv);
-                container.appendChild(card);
-            });
-            
-            // 화면 상단으로 부드럽게 이동
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        // --- 4. 새 문제 풀이 로직 ---
+        // --- 퀴즈 불러오기 및 채점 로직 (기존과 거의 동일, saveLogToCloud 사용) ---
         function loadSubject(fileName, subjectName) {
             const container = document.getElementById('quizContainer');
             const header = document.getElementById('quizHeader');
-            const loading = document.getElementById('loading');
+            container.innerHTML = '문제를 불러오는 중...';
             
-            container.innerHTML = '';
-            header.innerHTML = '';
-            document.getElementById('historyContainer').style.display = 'none'; 
-            loading.style.display = 'block'; 
-
             fetch(fileName)
-                .then(response => {
-                    if (!response.ok) throw new Error("파일 없음");
-                    return response.text();
-                })
+                .then(res => res.text())
                 .then(csvText => {
                     Papa.parse(csvText, {
-                        header: true,
-                        skipEmptyLines: true,
+                        header: true, skipEmptyLines: true,
                         complete: function(results) {
                             processAndRenderQuiz(results.data, subjectName);
-                            loading.style.display = 'none';
                         }
                     });
-                })
-                .catch(error => {
-                    loading.style.display = 'none';
-                    alert(`[오류] '${fileName}' 파일을 불러오지 못했습니다.`);
                 });
         }
 
         function processAndRenderQuiz(data, subjectName) {
             let validQuestions = data.filter(row => row['문제'] && row['보기1'] && row['정답']);
-
             if (validQuestions.length === 0) return alert("유효한 데이터가 없습니다.");
 
             for (let i = validQuestions.length - 1; i > 0; i--) {
@@ -297,22 +193,15 @@
                 [validQuestions[i], validQuestions[j]] = [validQuestions[j], validQuestions[i]];
             }
 
-            const questionCount = Math.min(20, validQuestions.length);
-            const selectedQuestions = validQuestions.slice(0, questionCount);
-
-            const header = document.getElementById('quizHeader');
-            header.innerText = `📖 [${subjectName}] 모의고사 (총 ${questionCount}문제)`;
-
+            const selectedQuestions = validQuestions.slice(0, 20);
+            document.getElementById('quizHeader').innerText = `📖 [${subjectName}] 모의고사`;
             const container = document.getElementById('quizContainer');
+            container.innerHTML = '';
 
             selectedQuestions.forEach((row, index) => {
                 const card = document.createElement('div');
                 card.className = 'quiz-card';
-
-                const question = document.createElement('div');
-                question.className = 'question';
-                question.innerText = `${index + 1}. ${row['문제']}`;
-                card.appendChild(question);
+                card.innerHTML = `<div style="font-weight:bold; margin-bottom:10px;">${index + 1}. ${row['문제']}</div>`;
 
                 const expDiv = document.createElement('div');
                 expDiv.className = 'explanation';
@@ -320,101 +209,45 @@
                 
                 for (let i = 1; i <= 4; i++) {
                     if (!row[`보기${i}`]) continue;
-
-                    const label = document.createElement('label');
-                    label.className = 'option';
-                    
-                    const radio = document.createElement('input');
-                    radio.type = 'radio';
-                    radio.name = `question_${index}`;
-                    radio.value = i;
-
-                    label.appendChild(radio);
-                    label.appendChild(document.createTextNode(row[`보기${i}`]));
-                    card.appendChild(label);
+                    card.innerHTML += `<label class="option"><input type="radio" name="q_${index}" value="${i}"> ${row[`보기${i}`]}</label>`;
                 }
-
                 card.appendChild(expDiv);
                 container.appendChild(card);
             });
 
             const submitBtn = document.createElement('button');
             submitBtn.className = 'submit-btn';
-            submitBtn.innerText = '답안 제출 및 채점하기';
+            submitBtn.innerText = '제출 및 채점하기';
             container.appendChild(submitBtn);
-
-            const resultBox = document.createElement('div');
-            resultBox.className = 'result-box';
-            resultBox.id = 'resultBox';
-            container.appendChild(resultBox);
 
             submitBtn.onclick = () => {
                 let correctCount = 0;
-                let userAnswers = []; // 사용자의 답안을 기록할 배열
+                let userAnswers = [];
 
                 selectedQuestions.forEach((row, index) => {
-                    const selectedRadio = document.querySelector(`input[name="question_${index}"]:checked`);
+                    const selectedRadio = document.querySelector(`input[name="q_${index}"]:checked`);
                     const expDiv = document.getElementById(`explanation_${index}`);
-                    
                     let isCorrect = false;
-                    let statusText = '❌ 선택 안 함';
                     let selectedVal = null;
 
                     if (selectedRadio) {
                         selectedVal = parseInt(selectedRadio.value);
                         isCorrect = selectedVal === parseInt(row['정답']);
-                        statusText = isCorrect ? '⭕ 정답입니다!' : '❌ 오답입니다.';
                         if (isCorrect) correctCount++;
                     }
-                    
-                    userAnswers.push(selectedVal); // 선택한 번호 저장 (선택 안 했으면 null)
+                    userAnswers.push(selectedVal);
 
-                    // 정답 하이라이트 (제출 후)
-                    const correctLabel = document.querySelector(`input[name="question_${index}"][value="${row['정답']}"]`).parentElement;
-                    correctLabel.style.border = '2px solid #22c55e';
-                    correctLabel.style.background = '#f0fdf4';
-
-                    expDiv.innerHTML = `
-                        <div class="${isCorrect ? 'correct-text' : 'wrong-text'}">
-                            ${statusText} (정답: ${row['정답']}번)
-                        </div>
-                        <div><strong>[해설]</strong><br>${row['해설'] || '해설이 제공되지 않았습니다.'}</div>
-                    `;
+                    expDiv.innerHTML = `<strong>${isCorrect ? '⭕ 정답' : '❌ 오답'}</strong> (정답: ${row['정답']}번)<br><br>[해설]<br>${row['해설']||'없음'}`;
                     expDiv.style.display = 'block';
-
-                    const allRadios = document.querySelectorAll(`input[name="question_${index}"]`);
-                    allRadios.forEach(r => r.disabled = true);
                 });
 
                 const totalScore = correctCount * 5;
-                const maxScore = questionCount * 5;
-
-                // 데이터베이스(로컬 스토리지)에 문제+답안 전체 저장
-                saveLog(subjectName, correctCount, questionCount, totalScore, selectedQuestions, userAnswers);
-
-                resultBox.innerHTML = `
-                    <div class="score-text">🎉 최종 점수: <span class="score-highlight">${totalScore}점</span> / ${maxScore}점</div>
-                    <p>총 ${questionCount}문제 중 <strong>${correctCount}문제</strong>를 맞혔습니다.</p>
-                `;
-                resultBox.style.display = 'block';
-                submitBtn.style.display = 'none'; 
-
-                resultBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                alert(`채점 완료! 총 ${totalScore}점 입니다.`);
+                
+                // ★ 파이어베이스 클라우드로 데이터 전송! ★
+                saveLogToCloud(subjectName, correctCount, 20, totalScore, selectedQuestions, userAnswers);
+                submitBtn.style.display = 'none';
             };
-        }
-
-        // --- 5. 맨 위로 가기 버튼 로직 ---
-        window.onscroll = function() {
-            const topBtn = document.getElementById("scrollTopBtn");
-            if (document.body.scrollTop > 100 || document.documentElement.scrollTop > 100) {
-                topBtn.style.display = "block";
-            } else {
-                topBtn.style.display = "none";
-            }
-        };
-
-        function scrollToTop() {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     </script>
 </body>
