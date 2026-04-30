@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>클라우드 모의고사 - 보기박스 추가</title>
+    <title>클라우드 모의고사 - 전체 모의고사 추가</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
@@ -16,24 +16,19 @@
         .login-btn { background: #4285F4; color: white; border: none; padding: 10px 20px; font-weight: bold; border-radius: 5px; cursor: pointer; }
         .logout-btn { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; margin-left: 10px; }
         .subject-menu { display: none; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 30px; }
-        .subject-btn { padding: 12px 20px; font-weight: bold; color: white; background-color: #3498db; border: none; border-radius: 5px; cursor: pointer; }
-        .quiz-card { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .subject-btn { padding: 12px 20px; font-weight: bold; color: white; background-color: #3498db; border: none; border-radius: 5px; cursor: pointer; transition: 0.2s; }
+        .subject-btn:hover { background-color: #2980b9; }
         
-        /* ★ ㄱ, ㄴ, ㄷ 보기 박스 디자인 ★ */
-        .statement-box { 
-            border: 2px solid #bdc3c7; 
-            padding: 15px; 
-            margin: 15px 0; 
-            background-color: #fdfdfd; 
-            border-radius: 5px; 
-            white-space: pre-wrap; /* 엑셀의 줄바꿈을 그대로 화면에 표시하는 핵심 코드 */
-            line-height: 1.6; 
-            color: #2c3e50;
-        }
+        /* ★ 전체 모의고사 버튼 강조 디자인 추가 ★ */
+        .all-btn { width: 100%; background-color: #e74c3c; font-size: 1.1em; margin-bottom: 10px; }
+        .all-btn:hover { background-color: #c0392b; }
 
-        .option { display: block; padding: 12px; margin: 8px 0; background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 5px; cursor: pointer; }
+        .quiz-card { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .statement-box { border: 2px solid #bdc3c7; padding: 15px; margin: 15px 0; background-color: #fdfdfd; border-radius: 5px; white-space: pre-wrap; line-height: 1.6; color: #2c3e50; }
+        .option { display: block; padding: 12px; margin: 8px 0; background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 5px; cursor: pointer; transition: 0.2s; }
+        .option:hover { background: #e2e8f0; }
         .explanation { display: none; margin-top: 15px; padding: 15px; background: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 4px; line-height: 1.5; }
-        .submit-btn { width: 100%; padding: 15px; background-color: #e74c3c; color: white; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; }
+        .submit-btn { width: 100%; padding: 15px; background-color: #e74c3c; color: white; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; font-size: 1.1em; }
         .history-container { display: none; background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .history-item { padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
         .review-btn { background: #34495e; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85em; margin-top: 8px; }
@@ -66,6 +61,9 @@
     </div>
 
     <div id="subjectMenu" class="subject-menu">
+        <!-- ★ 추가된 전체 모의고사 버튼 ★ -->
+        <button class="subject-btn all-btn" onclick="loadAllSubjects()">🔥 전체 과목 종합 모의고사 (20문제) 🔥</button>
+
         <button class="subject-btn" onclick="loadSubject('공항시설법_8급킬러_100선.csv', '공항시설법')">공항시설법</button>
         <button class="subject-btn" onclick="loadSubject('항공4법_통합연계_8급킬러_100선.csv', '항공4법 통합연계')">항공4법 통합연계</button>
         <button class="subject-btn" onclick="loadSubject('항공교통관제절차_8급킬러_100선.csv', '항공교통관제절차')">항공교통관제절차</button>
@@ -83,7 +81,6 @@
     <button id="scrollTopBtn" onclick="scrollToTop()">⬆️</button>
 
     <script>
-        // ★ 본인의 firebaseConfig로 덮어쓰세요! ★
         const firebaseConfig = {
             apiKey: "AIzaSyDJ5XB2tgGcF-qZfiGmo7rrNEruJAp1ZhA",
             authDomain: "quiz-app-85212.firebaseapp.com",
@@ -98,6 +95,19 @@
         const db = firebase.firestore();
         let currentUser = null;
         let cloudLogs = [];
+
+        // ★ 전체 모의고사를 위한 파일 목록 배열 추가 ★
+        const allFileNames = [
+            '공항시설법_8급킬러_100선.csv',
+            '항공4법_통합연계_8급킬러_100선.csv',
+            '항공교통관제절차_8급킬러_100선.csv',
+            '항공교통업무기준_8급킬러_100선.csv',
+            '항공보안법_8급킬러_100선.csv',
+            '항공사업법_8급킬러_100선.csv',
+            '항공안전법_2탄_8급킬러_100선.csv',
+            '항공안전법_8급킬러_100선.csv',
+            '항공4법_숫자계산_킬러50선_최종.csv'
+        ];
 
         auth.onAuthStateChanged(user => {
             if (user) {
@@ -200,7 +210,6 @@
                 card.className = 'quiz-card';
                 card.innerHTML = `<div style="font-weight:bold; margin-bottom:10px;">${qIdx + 1}. ${row['문제']}</div>`;
                 
-                // ★ 오답 노트 복기 시 보기박스가 있으면 렌더링 ★
                 if (row['보기박스'] && row['보기박스'].trim() !== '') {
                     card.innerHTML += `<div class="statement-box">${row['보기박스']}</div>`;
                 }
@@ -226,16 +235,58 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
+        // 개별 과목 불러오기
         function loadSubject(f, s) {
             document.getElementById('historyContainer').style.display = 'none';
-            document.getElementById('quizContainer').innerHTML = '불러오는 중...';
+            document.getElementById('quizHeader').innerText = '';
+            document.getElementById('quizContainer').innerHTML = '<div style="text-align:center; padding:20px; font-weight:bold;">파일을 불러오고 있습니다... ⏳</div>';
+            
             fetch(f).then(res => res.text()).then(txt => {
                 Papa.parse(txt, { header: true, skipEmptyLines: true, complete: res => renderQuiz(res.data, s) });
+            }).catch(e => {
+                document.getElementById('quizContainer').innerHTML = '';
+                alert(`[오류] '${f}' 파일을 찾을 수 없습니다.`);
             });
+        }
+
+        // ★ 전체 과목 종합 불러오기 로직 추가 ★
+        function loadAllSubjects() {
+            document.getElementById('historyContainer').style.display = 'none';
+            document.getElementById('quizHeader').innerText = '';
+            document.getElementById('quizContainer').innerHTML = '<div style="text-align:center; padding:20px; font-weight:bold; color:#e74c3c;">9개의 전체 파일을 불러오고 있습니다... ⏳<br><small>데이터가 많아 약간의 시간이 소요될 수 있습니다.</small></div>';
+
+            const fetchPromises = allFileNames.map(fileName => {
+                return fetch(fileName).then(response => {
+                    if (!response.ok) throw new Error(fileName);
+                    return response.text();
+                });
+            });
+
+            Promise.all(fetchPromises)
+                .then(csvTexts => {
+                    let combinedData = [];
+                    
+                    csvTexts.forEach(csvText => {
+                        const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+                        combinedData = combinedData.concat(parsed.data);
+                    });
+
+                    renderQuiz(combinedData, '전체 과목 종합');
+                })
+                .catch(error => {
+                    document.getElementById('quizContainer').innerHTML = '';
+                    alert(`[오류] '${error.message}' 파일을 찾을 수 없습니다. 이름이 정확한지 확인해주세요.`);
+                });
         }
 
         function renderQuiz(data, s) {
             let qList = data.filter(r => r['문제'] && r['보기1']).sort(() => Math.random() - 0.5).slice(0, 20);
+            
+            if(qList.length === 0) {
+                document.getElementById('quizContainer').innerHTML = '퀴즈 데이터가 없습니다.';
+                return;
+            }
+
             document.getElementById('quizHeader').innerText = `📖 [${s}] 모의고사`;
             const c = document.getElementById('quizContainer');
             c.innerHTML = '';
@@ -245,7 +296,6 @@
                 card.className = 'quiz-card';
                 card.innerHTML = `<div style="font-weight:bold; margin-bottom:10px;">${i + 1}. ${r['문제']}</div>`;
                 
-                // ★ 문제 출제 시 보기박스가 있으면 렌더링 ★
                 if (r['보기박스'] && r['보기박스'].trim() !== '') {
                     card.innerHTML += `<div class="statement-box">${r['보기박스']}</div>`;
                 }
@@ -262,6 +312,13 @@
             
             btn.onclick = () => {
                 let score = 0, uAns = [];
+                // 답안 미체크 검증
+                let isAllChecked = true;
+                qList.forEach((r, i) => {
+                    if (!document.querySelector(`input[name="q_${i}"]:checked`)) isAllChecked = false;
+                });
+                if(!isAllChecked && !confirm("선택하지 않은 문제가 있습니다. 이대로 제출하시겠습니까?")) return;
+
                 qList.forEach((r, i) => {
                     const sel = document.querySelector(`input[name="q_${i}"]:checked`);
                     const val = sel ? parseInt(sel.value) : null;
@@ -269,7 +326,7 @@
                     const isC = val === parseInt(r['정답']);
                     if (isC) score++;
                     const e = document.getElementById(`exp_${i}`);
-                    e.innerHTML = `<div class="${isC ? 'correct-text' : 'wrong-text'}">${isC ? '⭕ 정답' : '❌ 오답'} (정답: ${r['정답']}번)</div>[해설] ${r['해설']||'없음'}`;
+                    e.innerHTML = `<div class="${isC ? 'correct-text' : 'wrong-text'}">${isC ? '⭕ 정답' : '❌ 오답'} (정답: ${r['정답']}번)</div>[해설]<br>${r['해설']||'없음'}`;
                     e.style.display = 'block';
                     document.querySelectorAll(`input[name="q_${i}"]`).forEach(input => input.disabled = true);
                 });
@@ -281,6 +338,7 @@
                 });
                 alert(`채점 완료! 총 ${score * 5}점 입니다.\n결과가 클라우드에 저장되었습니다.`);
                 btn.style.display = 'none';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             };
         }
 
