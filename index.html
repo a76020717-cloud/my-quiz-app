@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>클라우드 모의고사 - 자동 로그아웃 및 연장</title>
+    <title>클라우드 모의고사 - 실전 모의고사 추가</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
@@ -12,16 +12,32 @@
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; background-color: #f4f7f6; }
         .header { text-align: center; margin-bottom: 20px; }
+        
+        /* 스크롤 시 상단에 고정되는 타이머들을 담는 컨테이너 */
+        .sticky-container { position: sticky; top: 10px; z-index: 100; display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+        
+        /* 세션 유지 타이머 (60분) */
+        .timer-box { display: none; background: #fff3e0; border: 2px solid #f39c12; padding: 12px; border-radius: 8px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .timer-text { font-size: 1.3em; font-weight: bold; color: #d35400; margin: 0 15px; vertical-align: middle; font-family: monospace; }
+        .extend-btn { background: #e67e22; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; vertical-align: middle; transition: 0.2s; }
+        .extend-btn:hover { background: #d35400; }
+
+        /* ★ 실전 모의고사 전용 시험 타이머 (40분) ★ */
+        .exam-timer-box { display: none; background: #fee2e2; border: 2px solid #ef4444; padding: 15px; border-radius: 8px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); animation: pulse 2s infinite; }
+        .exam-timer-text { font-size: 1.8em; font-weight: bold; color: #b91c1c; vertical-align: middle; font-family: monospace; letter-spacing: 2px; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+
         .auth-box { text-align: center; background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .login-btn { background: #4285F4; color: white; border: none; padding: 10px 20px; font-weight: bold; border-radius: 5px; cursor: pointer; }
-        .logout-btn { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; margin-left: 10px; }
-        /* 연장 버튼 스타일 */
-        .extend-btn { background: #f39c12; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; margin-left: 10px; font-weight: bold; }
+        .logout-btn { background: #7f8c8d; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; margin-left: 10px; }
         
         .subject-menu { display: none; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 30px; }
         .subject-btn { padding: 12px 20px; font-weight: bold; color: white; background-color: #3498db; border: none; border-radius: 5px; cursor: pointer; transition: 0.2s; }
         .subject-btn:hover { background-color: #2980b9; }
         
+        /* 버튼 색상 구분 */
+        .all-btn-real { width: 100%; background-color: #c0392b; font-size: 1.2em; margin-bottom: 10px; padding: 15px; }
+        .all-btn-real:hover { background-color: #a93226; }
         .all-btn-major { width: 100%; background-color: #8e44ad; font-size: 1.1em; margin-bottom: 5px; }
         .all-btn-major:hover { background-color: #732d91; }
         .all-btn-law { width: 100%; background-color: #e67e22; font-size: 1.1em; margin-bottom: 15px; }
@@ -32,7 +48,7 @@
         .option { display: block; padding: 12px; margin: 8px 0; background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 5px; cursor: pointer; transition: 0.2s; }
         .option:hover { background: #e2e8f0; }
         .explanation { display: none; margin-top: 15px; padding: 15px; background: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 4px; line-height: 1.5; }
-        .submit-btn { width: 100%; padding: 15px; background-color: #e74c3c; color: white; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; font-size: 1.1em; }
+        .submit-btn { width: 100%; padding: 15px; background-color: #27ae60; color: white; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; font-size: 1.2em; }
         .history-container { display: none; background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .history-item { padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
         .review-btn { background: #34495e; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85em; margin-top: 8px; }
@@ -47,13 +63,28 @@
 <body>
 
     <div class="header">
-        <h1>☁️ 프라이빗 모의고사</h1>
+        <h1>☁️ 프라이빗 실전 모의고사</h1>
+    </div>
+
+    <!-- 고정 타이머 컨테이너 (세션 + 시험) -->
+    <div class="sticky-container">
+        <!-- 60분 세션(로그아웃) 타이머 -->
+        <div id="timerBox" class="timer-box">
+            <span style="font-weight:bold; color:#7f8c8d;">자동 로그아웃 방어막</span>
+            <span id="timerText" class="timer-text">60:00</span>
+            <button class="extend-btn" onclick="extendSession()">⏱️ 60분 연장</button>
+        </div>
+
+        <!-- 40분 실전 모의고사 타이머 -->
+        <div id="examTimerBox" class="exam-timer-box">
+            <span style="font-weight:bold; font-size:1.1em; margin-right:15px; color:#b91c1c;">🔥 실전 시험 남은 시간</span>
+            <span id="examTimerText" class="exam-timer-text">40:00</span>
+        </div>
     </div>
 
     <div class="auth-box" id="authBox">
         <p id="userInfo">승인된 계정으로만 로그인할 수 있습니다.</p>
         <button id="loginBtn" class="login-btn" onclick="signIn()">구글 계정으로 로그인</button>
-        <button id="extendBtn" class="extend-btn" style="display:none;" onclick="extendSession()">⏱️ 로그인 연장 (60분)</button>
         <button id="logoutBtn" class="logout-btn" style="display:none;" onclick="signOut()">로그아웃</button>
         <button id="historyBtn" class="login-btn" style="display:none; background:#27ae60; margin-top:10px;" onclick="toggleHistory()">📋 내 학습 기록 및 오답 노트</button>
     </div>
@@ -66,8 +97,11 @@
     </div>
 
     <div id="subjectMenu" class="subject-menu">
-        <button class="subject-btn all-btn-major" onclick="loadGroupExam('major', '전공')">✈️ 전공 통합 모의고사 (관제절차+업무기준 / 20문제)</button>
-        <button class="subject-btn all-btn-law" onclick="loadGroupExam('law', '항공법')">⚖️ 항공법 종합 모의고사 (나머지 7과목 / 20문제)</button>
+        <!-- ★ 추가된 실전 모의고사 버튼 ★ -->
+        <button class="subject-btn all-btn-real" onclick="loadRealExam()">🔥 전과목 실전 모의고사 🔥</button>
+
+        <button class="subject-btn all-btn-major" onclick="loadGroupExam('major', '전공')">✈️ 전공 통합 모의고사</button>
+        <button class="subject-btn all-btn-law" onclick="loadGroupExam('law', '항공법')">⚖️ 항공법 종합 모의고사</button>
 
         <button class="subject-btn" onclick="loadSubject('공항시설법_8급킬러_100선.csv', '공항시설법')">공항시설법</button>
         <button class="subject-btn" onclick="loadSubject('항공4법_통합연계_8급킬러_100선.csv', '항공4법 통합연계')">항공4법 통합연계</button>
@@ -80,13 +114,12 @@
         <button class="subject-btn" onclick="loadSubject('항공4법_숫자계산_킬러100선_최종.csv', '숫자계산')">숫자계산</button>
     </div>
 
-    <div id="quizHeader" style="font-weight:bold; font-size:1.2em; text-align:center; margin-bottom:20px;"></div>
+    <div id="quizHeader" style="font-weight:bold; font-size:1.3em; text-align:center; margin-bottom:20px; color:#2c3e50;"></div>
     <div id="quizContainer"></div>
 
     <button id="scrollTopBtn" onclick="scrollToTop()">⬆️</button>
 
     <script>
-        // ★ 1. 본인의 firebaseConfig로 덮어쓰세요.
         const firebaseConfig = {
             apiKey: "AIzaSyDJ5XB2tgGcF-qZfiGmo7rrNEruJAp1ZhA",
             authDomain: "quiz-app-85212.firebaseapp.com",
@@ -96,7 +129,6 @@
             appId: "1:828608639854:web:cdef24bdb0e4885be8477f"
         };
 
-        // ★ 2. 접속 허용 이메일 명단
         const allowedEmails = [
             'a76020717@gmail.com',
             'friend1@gmail.com',
@@ -109,9 +141,10 @@
         let currentUser = null;
         let cloudLogs = [];
         
-        // ★ 세션 타이머 관련 변수
-        let sessionTimer = null;
-        const SESSION_DURATION = 60 * 60 * 1000; // 1시간 (밀리초)
+        let sessionInterval = null; 
+        let sessionEndTime = null;
+
+        let examInterval = null; // 시험 전용 타이머
 
         const majorFiles = [
             '항공교통관제절차_8급킬러_100선.csv',
@@ -128,125 +161,103 @@
             '항공4법_숫자계산_킬러100선_최종.csv'
         ];
 
-        // 1시간 타이머 시작 함수
+        // 1시간 자동 로그아웃 타이머
         function startSessionTimer() {
-            if (sessionTimer) clearTimeout(sessionTimer); // 기존 타이머가 있으면 제거
-            
-            sessionTimer = setTimeout(() => {
-                alert("1시간이 경과하여 자동으로 로그아웃 되었습니다.");
-                signOut();
-            }, SESSION_DURATION);
+            if (sessionInterval) clearInterval(sessionInterval);
+            sessionEndTime = Date.now() + (60 * 60 * 1000);
+            updateTimerDisplay(); 
+            sessionInterval = setInterval(updateTimerDisplay, 1000);
         }
 
-        // 로그인 연장 기능
+        function updateTimerDisplay() {
+            const remainTime = sessionEndTime - Date.now();
+            if (remainTime <= 0) {
+                clearInterval(sessionInterval);
+                document.getElementById('timerText').innerText = "00:00";
+                alert("1시간이 경과하여 자동으로 로그아웃 되었습니다.");
+                signOut();
+                return;
+            }
+            const minutes = Math.floor(remainTime / (1000 * 60));
+            const seconds = Math.floor((remainTime % (1000 * 60)) / 1000);
+            document.getElementById('timerText').innerText = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
         function extendSession() {
-            startSessionTimer(); // 타이머를 초기화하고 처음부터 다시 시작
-            alert("로그인 시간이 1시간 연장되었습니다.");
+            startSessionTimer();
+            alert("로그인 시간이 60분 다시 연장되었습니다.");
         }
 
         auth.onAuthStateChanged(user => {
             if (user) {
                 if (!allowedEmails.includes(user.email)) {
-                    alert(`접근 권한이 없습니다.\n관리자에게 승인을 요청하세요.\n(접속 시도 계정: ${user.email})`);
-                    auth.signOut();
-                    return;
+                    alert(`접근 권한이 없습니다.\n(접속 시도 계정: ${user.email})`);
+                    auth.signOut(); return;
                 }
-
                 currentUser = user;
                 document.getElementById('userInfo').innerText = `${user.displayName}님 환영합니다!`;
                 document.getElementById('loginBtn').style.display = 'none';
-                document.getElementById('extendBtn').style.display = 'inline-block'; // 연장 버튼 보이기
                 document.getElementById('logoutBtn').style.display = 'inline-block';
                 document.getElementById('historyBtn').style.display = 'inline-block';
                 document.getElementById('subjectMenu').style.display = 'flex';
                 
-                startSessionTimer(); // 로그인 성공 시 타이머 작동
-
+                document.getElementById('timerBox').style.display = 'block';
+                startSessionTimer(); 
             } else {
                 currentUser = null;
-                if (sessionTimer) clearTimeout(sessionTimer); // 로그아웃 시 타이머 정지
+                if (sessionInterval) clearInterval(sessionInterval);
+                if (examInterval) clearInterval(examInterval);
+                document.getElementById('timerBox').style.display = 'none';
+                document.getElementById('examTimerBox').style.display = 'none';
                 
                 document.getElementById('userInfo').innerText = '승인된 계정으로만 로그인할 수 있습니다.';
                 document.getElementById('loginBtn').style.display = 'inline-block';
-                document.getElementById('extendBtn').style.display = 'none'; // 연장 버튼 숨기기
                 document.getElementById('logoutBtn').style.display = 'none';
                 document.getElementById('historyBtn').style.display = 'none';
                 document.getElementById('subjectMenu').style.display = 'none';
                 document.getElementById('quizContainer').innerHTML = '';
+                document.getElementById('quizHeader').innerText = '';
             }
         });
 
-        function signIn() {
-            const provider = new firebase.auth.GoogleAuthProvider();
-            auth.signInWithPopup(provider).catch(e => alert(e.message));
-        }
+        function signIn() { auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e => alert(e.message)); }
         function signOut() { auth.signOut(); }
 
+        // --- (중략) 히스토리 기능은 동일 유지 ---
         function toggleHistory() {
             const container = document.getElementById('historyContainer');
-            if (container.style.display === 'block') { 
-                container.style.display = 'none'; 
-            } else {
-                fetchAndDisplayLogs();
-                container.style.display = 'block';
-            }
+            if (container.style.display === 'block') container.style.display = 'none'; 
+            else { fetchAndDisplayLogs(); container.style.display = 'block'; }
         }
 
         function fetchAndDisplayLogs() {
             const listDiv = document.getElementById('historyList');
             listDiv.innerHTML = '불러오는 중...';
-            
             db.collection("quizLogs").where("uid", "==", currentUser.uid).orderBy("timestamp", "desc").get()
                 .then(snapshot => {
-                    cloudLogs = [];
-                    listDiv.innerHTML = '';
+                    cloudLogs = []; listDiv.innerHTML = '';
                     if (snapshot.empty) { listDiv.innerHTML = '<p style="text-align:center;">기록이 없습니다.</p>'; return; }
-                    
                     snapshot.forEach((doc, index) => {
-                        const log = doc.data();
-                        log.docId = doc.id;
-                        cloudLogs.push(log);
-                        
-                        const item = document.createElement('div');
-                        item.className = 'history-item';
-                        item.innerHTML = `
-                            <div>
-                                <strong>[${log.subject}]</strong><br><small>${log.dateString}</small><br>
-                                <button class="review-btn" onclick="reviewCloudQuiz(${index})">🔍 오답노트 보기</button>
-                                <button class="delete-btn" onclick="deleteLog('${doc.id}')">🗑️ 삭제</button>
-                            </div>
-                            <div style="text-align:right;">
-                                <strong>${log.score}점</strong><br><small>${log.correct}/20</small>
-                            </div>`;
+                        const log = doc.data(); log.docId = doc.id; cloudLogs.push(log);
+                        const item = document.createElement('div'); item.className = 'history-item';
+                        item.innerHTML = `<div><strong>[${log.subject}]</strong><br><small>${log.dateString}</small><br><button class="review-btn" onclick="reviewCloudQuiz(${index})">🔍 오답노트</button><button class="delete-btn" onclick="deleteLog('${doc.id}')">🗑️ 삭제</button></div><div style="text-align:right;"><strong>${log.score}점</strong><br><small>${log.correct}/${log.total}</small></div>`;
                         listDiv.appendChild(item);
                     });
                 });
         }
 
-        function deleteLog(docId) {
-            if(confirm("이 기록을 삭제하시겠습니까?")) {
-                db.collection("quizLogs").doc(docId).delete().then(() => fetchAndDisplayLogs()).catch(e => alert("삭제 실패: " + e.message));
-            }
-        }
-
+        function deleteLog(docId) { if(confirm("이 기록을 삭제하시겠습니까?")) db.collection("quizLogs").doc(docId).delete().then(() => fetchAndDisplayLogs()); }
         function deleteAllLogs() {
-            if(confirm("정말 모든 학습 기록을 삭제하시겠습니까?\n(삭제 후에는 복구할 수 없습니다.)")) {
-                const listDiv = document.getElementById('historyList');
-                listDiv.innerHTML = '전체 삭제 중... ⏳';
-
-                db.collection("quizLogs").where("uid", "==", currentUser.uid).get()
-                    .then(snapshot => {
-                        const batch = db.batch();
-                        snapshot.forEach(doc => batch.delete(doc.ref));
-                        return batch.commit();
-                    }).then(() => {
-                        alert("모든 기록이 삭제되었습니다.");
-                        fetchAndDisplayLogs();
-                    }).catch(e => alert("전체 삭제 실패: " + e.message));
+            if(confirm("정말 모든 기록을 삭제하시겠습니까?")) {
+                db.collection("quizLogs").where("uid", "==", currentUser.uid).get().then(snapshot => {
+                    const batch = db.batch(); snapshot.forEach(doc => batch.delete(doc.ref)); return batch.commit();
+                }).then(() => { alert("삭제 완료"); fetchAndDisplayLogs(); });
             }
         }
 
         function reviewCloudQuiz(index) {
+            if (examInterval) clearInterval(examInterval);
+            document.getElementById('examTimerBox').style.display = 'none';
             const log = cloudLogs[index];
             document.getElementById('historyContainer').style.display = 'none';
             const container = document.getElementById('quizContainer');
@@ -254,115 +265,113 @@
             container.innerHTML = `<button class="close-btn" style="margin-bottom:20px;" onclick="toggleHistory()">◀ 목록으로 돌아가기</button>`;
 
             log.questions.forEach((row, qIdx) => {
-                const card = document.createElement('div');
-                card.className = 'quiz-card';
+                const card = document.createElement('div'); card.className = 'quiz-card';
                 card.innerHTML = `<div style="font-weight:bold; margin-bottom:10px;">${qIdx + 1}. ${row['문제']}</div>`;
-                
-                if (row['보기박스'] && row['보기박스'].trim() !== '') {
-                    card.innerHTML += `<div class="statement-box">${row['보기박스']}</div>`;
-                }
-
-                const userAnswer = log.userAnswers[qIdx];
-                const isCorrect = userAnswer === parseInt(row['정답']);
+                if (row['보기박스'] && row['보기박스'].trim() !== '') card.innerHTML += `<div class="statement-box">${row['보기박스']}</div>`;
+                const userAnswer = log.userAnswers[qIdx]; const isCorrect = userAnswer === parseInt(row['정답']);
 
                 for (let i = 1; i <= 4; i++) {
-                    const label = document.createElement('label');
-                    label.className = 'option';
+                    const label = document.createElement('label'); label.className = 'option';
                     if (i === parseInt(row['정답'])) { label.style.border = '2px solid #22c55e'; label.style.background = '#f0fdf4'; }
                     else if (userAnswer === i && !isCorrect) { label.style.border = '2px solid #ef4444'; label.style.background = '#fef2f2'; }
                     label.innerHTML = `<input type="radio" disabled ${userAnswer === i ? 'checked' : ''}> ${row['보기' + i]}`;
                     card.appendChild(label);
                 }
-                const exp = document.createElement('div');
-                exp.className = 'explanation';
-                exp.style.display = 'block';
-                exp.innerHTML = `<div class="${isCorrect ? 'correct-text' : 'wrong-text'}">${isCorrect ? '⭕ 정답' : '❌ 오답'} (정답: ${row['정답']}번)</div><div>[해설] ${row['해설'] || '없음'}</div>`;
-                card.appendChild(exp);
+                card.innerHTML += `<div class="explanation" style="display:block;"><div class="${isCorrect ? 'correct-text' : 'wrong-text'}">${isCorrect ? '⭕ 정답' : '❌ 오답'} (정답: ${row['정답']}번)</div><div>[해설] ${row['해설'] || '없음'}</div></div>`;
                 container.appendChild(card);
             });
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        function loadSubject(f, s) {
-            document.getElementById('historyContainer').style.display = 'none';
-            document.getElementById('quizHeader').innerText = '';
-            document.getElementById('quizContainer').innerHTML = '<div style="text-align:center; padding:20px; font-weight:bold;">파일을 불러오고 있습니다... ⏳</div>';
+        // 공통 문제 추출 함수 (과목당 1문제 보장 로직)
+        function extractQuestions(csvTexts, neededTotal) {
+            let selected = [];
+            let pool = [];
+            csvTexts.forEach(csvText => {
+                const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+                let valid = parsed.data.filter(r => r['문제'] && r['보기1'] && r['정답']);
+                valid.sort(() => Math.random() - 0.5);
+                
+                // 파일당 1개 무조건 추출
+                if(valid.length > 0) selected.push(valid.pop());
+                // 나머지는 풀에 저장
+                pool = pool.concat(valid);
+            });
             
+            // 부족한 만큼 섞인 풀에서 가져오기
+            const neededCount = neededTotal - selected.length;
+            pool.sort(() => Math.random() - 0.5);
+            selected = selected.concat(pool.slice(0, neededCount));
+            
+            return selected;
+        }
+
+        // 1. 단일 과목
+        function loadSubject(f, s) {
+            resetQuizUI();
             fetch(f).then(res => res.text()).then(txt => {
                 Papa.parse(txt, { header: true, skipEmptyLines: true, complete: res => {
                     let qList = res.data.filter(r => r['문제'] && r['보기1']).sort(() => Math.random() - 0.5).slice(0, 20);
-                    renderQuiz(qList, s);
+                    renderQuiz(qList, s, false);
                 }});
-            }).catch(e => {
-                document.getElementById('quizContainer').innerHTML = '';
-                alert(`[오류] '${f}' 파일을 찾을 수 없습니다.`);
             });
         }
 
+        // 2. 통합 모의고사 (전공 20문제 또는 법 20문제)
         function loadGroupExam(groupType, groupName) {
+            resetQuizUI();
+            const targetFiles = (groupType === 'major') ? majorFiles : lawFiles;
+            const fetchPromises = targetFiles.map(fileName => fetch(fileName).then(r => r.text()));
+
+            Promise.all(fetchPromises).then(csvTexts => {
+                let finalQuestions = extractQuestions(csvTexts, 20);
+                finalQuestions.sort(() => Math.random() - 0.5); // 마지막으로 전체 섞기
+                renderQuiz(finalQuestions, `${groupName} 통합`, false);
+            });
+        }
+
+        // 3. ★ 실전 모의고사 (전공 20문제 + 법 20문제 = 총 40문제 합침) ★
+        function loadRealExam() {
+            resetQuizUI();
+            document.getElementById('quizContainer').innerHTML = `<div style="text-align:center; padding:20px; font-weight:bold; color:#c0392b;">전공과 항공법 데이터를 취합하여 실전 시험지를 구성 중입니다... ⏳</div>`;
+
+            Promise.all([
+                Promise.all(majorFiles.map(f => fetch(f).then(r => r.text()))),
+                Promise.all(lawFiles.map(f => fetch(f).then(r => r.text())))
+            ]).then(([majorTexts, lawTexts]) => {
+                // 각각 20문제씩 추출 (과목당 최소 1문제 보장)
+                let majorQuestions = extractQuestions(majorTexts, 20);
+                let lawQuestions = extractQuestions(lawTexts, 20);
+                
+                // 두 배열을 합치고 최종 셔플 (총 40문제)
+                let finalQuestions = majorQuestions.concat(lawQuestions);
+                finalQuestions.sort(() => Math.random() - 0.5);
+
+                // isRealExam 변수를 true로 전달하여 40분 타이머 발동
+                renderQuiz(finalQuestions, '전과목 실전', true);
+            }).catch(error => {
+                alert(`오류: 파일을 읽어오지 못했습니다.`);
+            });
+        }
+
+        function resetQuizUI() {
             document.getElementById('historyContainer').style.display = 'none';
             document.getElementById('quizHeader').innerText = '';
-            document.getElementById('quizContainer').innerHTML = `<div style="text-align:center; padding:20px; font-weight:bold; color:#e74c3c;">[${groupName}] 과목들을 조합하여 문제를 출제 중입니다... ⏳</div>`;
-
-            const targetFiles = (groupType === 'major') ? majorFiles : lawFiles;
-
-            const fetchPromises = targetFiles.map(fileName => {
-                return fetch(fileName).then(response => {
-                    if (!response.ok) throw new Error(fileName);
-                    return response.text();
-                });
-            });
-
-            Promise.all(fetchPromises)
-                .then(csvTexts => {
-                    let finalQuestions = []; 
-                    let remainingPool = []; 
-
-                    csvTexts.forEach(csvText => {
-                        const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-                        let validQuestions = parsed.data.filter(r => r['문제'] && r['보기1'] && r['정답']);
-                        validQuestions.sort(() => Math.random() - 0.5);
-                        
-                        if(validQuestions.length > 0) {
-                            finalQuestions.push(validQuestions.pop());
-                        }
-
-                        remainingPool = remainingPool.concat(validQuestions);
-                    });
-
-                    const neededCount = 20 - finalQuestions.length;
-                    
-                    remainingPool.sort(() => Math.random() - 0.5);
-                    finalQuestions = finalQuestions.concat(remainingPool.slice(0, neededCount));
-
-                    finalQuestions.sort(() => Math.random() - 0.5);
-
-                    renderQuiz(finalQuestions, `${groupName} 통합`);
-                })
-                .catch(error => {
-                    document.getElementById('quizContainer').innerHTML = '';
-                    alert(`[오류] '${error.message}' 파일을 찾을 수 없습니다. 이름이 정확한지 확인해주세요.`);
-                });
+            document.getElementById('quizContainer').innerHTML = '<div style="text-align:center; padding:20px; font-weight:bold;">문제를 불러오고 있습니다... ⏳</div>';
+            if (examInterval) clearInterval(examInterval);
+            document.getElementById('examTimerBox').style.display = 'none';
         }
 
-        function renderQuiz(qList, s) {
-            if(qList.length === 0) {
-                document.getElementById('quizContainer').innerHTML = '퀴즈 데이터가 없습니다.';
-                return;
-            }
-
-            document.getElementById('quizHeader').innerText = `📖 [${s}] 랜덤 모의고사 (총 ${qList.length}문제)`;
+        // 화면 렌더링 및 채점(강제 제출 포함) 로직
+        function renderQuiz(qList, s, isRealExam) {
+            document.getElementById('quizHeader').innerText = `📖 [${s}] 모의고사 (총 ${qList.length}문제)`;
             const c = document.getElementById('quizContainer');
             c.innerHTML = '';
             
             qList.forEach((r, i) => {
-                const card = document.createElement('div');
-                card.className = 'quiz-card';
+                const card = document.createElement('div'); card.className = 'quiz-card';
                 card.innerHTML = `<div style="font-weight:bold; margin-bottom:10px;">${i + 1}. ${r['문제']}</div>`;
-                
-                if (r['보기박스'] && r['보기박스'].trim() !== '') {
-                    card.innerHTML += `<div class="statement-box">${r['보기박스']}</div>`;
-                }
+                if (r['보기박스'] && r['보기박스'].trim() !== '') card.innerHTML += `<div class="statement-box">${r['보기박스']}</div>`;
 
                 for (let j = 1; j <= 4; j++) {
                     card.innerHTML += `<label class="option"><input type="radio" name="q_${i}" value="${j}"> ${r['보기' + j]}</label>`;
@@ -372,17 +381,23 @@
             });
             
             const btn = document.createElement('button');
-            btn.className = 'submit-btn'; btn.innerText = '제출 및 채점';
+            btn.className = 'submit-btn'; btn.innerText = '답안 제출 및 채점하기';
             c.appendChild(btn);
             
-            btn.onclick = () => {
-                let score = 0, uAns = [];
-                let isAllChecked = true;
-                qList.forEach((r, i) => {
-                    if (!document.querySelector(`input[name="q_${i}"]:checked`)) isAllChecked = false;
-                });
-                if(!isAllChecked && !confirm("선택하지 않은 문제가 있습니다. 이대로 제출하시겠습니까?")) return;
+            // 제출 함수 (사용자 클릭 또는 타이머 종료 시 호출됨)
+            const submitExamLogic = (isAutoSubmit = false) => {
+                // 사용자가 직접 누른 경우 빈 문제 체크
+                if (!isAutoSubmit) {
+                    let isAllChecked = true;
+                    qList.forEach((r, i) => { if (!document.querySelector(`input[name="q_${i}"]:checked`)) isAllChecked = false; });
+                    if(!isAllChecked && !confirm("선택하지 않은 문제가 있습니다. 이대로 제출하시겠습니까?")) return;
+                }
 
+                // 타이머 정지 및 숨김
+                if (examInterval) clearInterval(examInterval);
+                document.getElementById('examTimerBox').style.display = 'none';
+
+                let score = 0, uAns = [];
                 qList.forEach((r, i) => {
                     const sel = document.querySelector(`input[name="q_${i}"]:checked`);
                     const val = sel ? parseInt(sel.value) : null;
@@ -395,15 +410,41 @@
                     document.querySelectorAll(`input[name="q_${i}"]`).forEach(input => input.disabled = true);
                 });
                 
+                // 총점이 100점 만점이 되도록 계산 (40문제면 문제당 2.5점, 20문제면 5점)
+                const pointPerQuestion = 100 / qList.length;
+                const finalScore = score * pointPerQuestion;
+
                 db.collection("quizLogs").add({
                     uid: currentUser.uid, timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                    dateString: new Date().toLocaleString(), subject: s, correct: score, total: qList.length, score: score * 5,
+                    dateString: new Date().toLocaleString(), subject: s, correct: score, total: qList.length, score: finalScore,
                     questions: qList, userAnswers: uAns
                 });
-                alert(`채점 완료! 총 ${score * 5}점 입니다.\n결과가 클라우드에 저장되었습니다.`);
+                alert(`채점 완료! 총 ${finalScore}점 입니다.\n결과가 클라우드에 저장되었습니다.`);
                 btn.style.display = 'none';
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             };
+
+            btn.onclick = () => submitExamLogic(false);
+
+            // ★ 실전 모의고사 타이머 발동 로직 ★
+            if (isRealExam) {
+                document.getElementById('examTimerBox').style.display = 'block';
+                let remainSeconds = 40 * 60; // 40분
+                document.getElementById('examTimerText').innerText = "40:00";
+                
+                examInterval = setInterval(() => {
+                    remainSeconds--;
+                    if (remainSeconds <= 0) {
+                        clearInterval(examInterval);
+                        alert("⏱️ 40분 시험 시간이 모두 종료되었습니다.\n선택하신 답안까지만 자동으로 제출됩니다.");
+                        submitExamLogic(true); // 강제 제출 (빈칸 알림창 생략)
+                    } else {
+                        let m = String(Math.floor(remainSeconds / 60)).padStart(2, '0');
+                        let sec = String(remainSeconds % 60).padStart(2, '0');
+                        document.getElementById('examTimerText').innerText = `${m}:${sec}`;
+                    }
+                }, 1000);
+            }
         }
 
         window.onscroll = () => { document.getElementById("scrollTopBtn").style.display = (window.scrollY > 100) ? "block" : "none"; };
