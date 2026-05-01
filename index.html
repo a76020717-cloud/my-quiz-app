@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>클라우드 모의고사 - 분리형 전체 모의고사</title>
+    <title>클라우드 모의고사 - 자동 로그아웃 및 연장</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
@@ -15,11 +15,13 @@
         .auth-box { text-align: center; background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .login-btn { background: #4285F4; color: white; border: none; padding: 10px 20px; font-weight: bold; border-radius: 5px; cursor: pointer; }
         .logout-btn { background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; margin-left: 10px; }
+        /* 연장 버튼 스타일 */
+        .extend-btn { background: #f39c12; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; margin-left: 10px; font-weight: bold; }
+        
         .subject-menu { display: none; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 30px; }
         .subject-btn { padding: 12px 20px; font-weight: bold; color: white; background-color: #3498db; border: none; border-radius: 5px; cursor: pointer; transition: 0.2s; }
         .subject-btn:hover { background-color: #2980b9; }
         
-        /* ★ 두 가지 통합 모의고사 버튼 색상 구분 ★ */
         .all-btn-major { width: 100%; background-color: #8e44ad; font-size: 1.1em; margin-bottom: 5px; }
         .all-btn-major:hover { background-color: #732d91; }
         .all-btn-law { width: 100%; background-color: #e67e22; font-size: 1.1em; margin-bottom: 15px; }
@@ -45,12 +47,13 @@
 <body>
 
     <div class="header">
-        <h1>☁️ 클라우드 동기화 모의고사</h1>
+        <h1>☁️ 프라이빗 모의고사</h1>
     </div>
 
     <div class="auth-box" id="authBox">
-        <p id="userInfo">로그인이 필요합니다.</p>
+        <p id="userInfo">승인된 계정으로만 로그인할 수 있습니다.</p>
         <button id="loginBtn" class="login-btn" onclick="signIn()">구글 계정으로 로그인</button>
+        <button id="extendBtn" class="extend-btn" style="display:none;" onclick="extendSession()">⏱️ 로그인 연장 (60분)</button>
         <button id="logoutBtn" class="logout-btn" style="display:none;" onclick="signOut()">로그아웃</button>
         <button id="historyBtn" class="login-btn" style="display:none; background:#27ae60; margin-top:10px;" onclick="toggleHistory()">📋 내 학습 기록 및 오답 노트</button>
     </div>
@@ -63,11 +66,9 @@
     </div>
 
     <div id="subjectMenu" class="subject-menu">
-        <!-- ★ 나뉘어진 2개의 통합 모의고사 버튼 ★ -->
-        <button class="subject-btn all-btn-major" onclick="loadGroupExam('major', '전공')">✈️ 전공 모의고사</button>
-        <button class="subject-btn all-btn-law" onclick="loadGroupExam('law', '항공법')">⚖️ 항공법 모의고사</button>
+        <button class="subject-btn all-btn-major" onclick="loadGroupExam('major', '전공')">✈️ 전공 통합 모의고사 (관제절차+업무기준 / 20문제)</button>
+        <button class="subject-btn all-btn-law" onclick="loadGroupExam('law', '항공법')">⚖️ 항공법 종합 모의고사 (나머지 7과목 / 20문제)</button>
 
-        <!-- 기존 개별 버튼 -->
         <button class="subject-btn" onclick="loadSubject('공항시설법_8급킬러_100선.csv', '공항시설법')">공항시설법</button>
         <button class="subject-btn" onclick="loadSubject('항공4법_통합연계_8급킬러_100선.csv', '항공4법 통합연계')">항공4법 통합연계</button>
         <button class="subject-btn" onclick="loadSubject('항공교통관제절차_8급킬러_100선.csv', '항공교통관제절차')">항공교통관제절차</button>
@@ -85,7 +86,7 @@
     <button id="scrollTopBtn" onclick="scrollToTop()">⬆️</button>
 
     <script>
-        // ★ 본인의 firebaseConfig로 덮어쓰세요!
+        // ★ 1. 본인의 firebaseConfig로 덮어쓰세요.
         const firebaseConfig = {
             apiKey: "AIzaSyDJ5XB2tgGcF-qZfiGmo7rrNEruJAp1ZhA",
             authDomain: "quiz-app-85212.firebaseapp.com",
@@ -95,13 +96,23 @@
             appId: "1:828608639854:web:cdef24bdb0e4885be8477f"
         };
 
+        // ★ 2. 접속 허용 이메일 명단
+        const allowedEmails = [
+            'a76020717@gmail.com',
+            'friend1@gmail.com',
+            'friend2@naver.com'
+        ];
+
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
         let currentUser = null;
         let cloudLogs = [];
+        
+        // ★ 세션 타이머 관련 변수
+        let sessionTimer = null;
+        const SESSION_DURATION = 60 * 60 * 1000; // 1시간 (밀리초)
 
-        // ★ 그룹별 파일 목록 정의 ★
         const majorFiles = [
             '항공교통관제절차_8급킬러_100선.csv',
             '항공교통업무기준_8급킬러_100선.csv'
@@ -117,18 +128,47 @@
             '항공4법_숫자계산_킬러100선_최종.csv'
         ];
 
+        // 1시간 타이머 시작 함수
+        function startSessionTimer() {
+            if (sessionTimer) clearTimeout(sessionTimer); // 기존 타이머가 있으면 제거
+            
+            sessionTimer = setTimeout(() => {
+                alert("1시간이 경과하여 자동으로 로그아웃 되었습니다.");
+                signOut();
+            }, SESSION_DURATION);
+        }
+
+        // 로그인 연장 기능
+        function extendSession() {
+            startSessionTimer(); // 타이머를 초기화하고 처음부터 다시 시작
+            alert("로그인 시간이 1시간 연장되었습니다.");
+        }
+
         auth.onAuthStateChanged(user => {
             if (user) {
+                if (!allowedEmails.includes(user.email)) {
+                    alert(`접근 권한이 없습니다.\n관리자에게 승인을 요청하세요.\n(접속 시도 계정: ${user.email})`);
+                    auth.signOut();
+                    return;
+                }
+
                 currentUser = user;
                 document.getElementById('userInfo').innerText = `${user.displayName}님 환영합니다!`;
                 document.getElementById('loginBtn').style.display = 'none';
+                document.getElementById('extendBtn').style.display = 'inline-block'; // 연장 버튼 보이기
                 document.getElementById('logoutBtn').style.display = 'inline-block';
                 document.getElementById('historyBtn').style.display = 'inline-block';
                 document.getElementById('subjectMenu').style.display = 'flex';
+                
+                startSessionTimer(); // 로그인 성공 시 타이머 작동
+
             } else {
                 currentUser = null;
-                document.getElementById('userInfo').innerText = '로그인이 필요합니다.';
+                if (sessionTimer) clearTimeout(sessionTimer); // 로그아웃 시 타이머 정지
+                
+                document.getElementById('userInfo').innerText = '승인된 계정으로만 로그인할 수 있습니다.';
                 document.getElementById('loginBtn').style.display = 'inline-block';
+                document.getElementById('extendBtn').style.display = 'none'; // 연장 버튼 숨기기
                 document.getElementById('logoutBtn').style.display = 'none';
                 document.getElementById('historyBtn').style.display = 'none';
                 document.getElementById('subjectMenu').style.display = 'none';
@@ -243,7 +283,6 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // 1. 단일 과목 불러오기
         function loadSubject(f, s) {
             document.getElementById('historyContainer').style.display = 'none';
             document.getElementById('quizHeader').innerText = '';
@@ -260,7 +299,6 @@
             });
         }
 
-        // 2. ★ 그룹 모의고사 (과목당 최소 1문제 보장 로직) ★
         function loadGroupExam(groupType, groupName) {
             document.getElementById('historyContainer').style.display = 'none';
             document.getElementById('quizHeader').innerText = '';
@@ -277,32 +315,26 @@
 
             Promise.all(fetchPromises)
                 .then(csvTexts => {
-                    let finalQuestions = []; // 최종 20문제가 담길 배열
-                    let remainingPool = []; // 각 파일에서 1문제씩 뽑고 남은 문제들이 모일 잉여 풀
+                    let finalQuestions = []; 
+                    let remainingPool = []; 
 
                     csvTexts.forEach(csvText => {
                         const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-                        // 해당 파일의 유효한 문제만 추출 후 무작위로 섞음
                         let validQuestions = parsed.data.filter(r => r['문제'] && r['보기1'] && r['정답']);
                         validQuestions.sort(() => Math.random() - 0.5);
                         
-                        // ★ 조건 달성: 섞인 문제 중 맨 앞 1개를 무조건 finalQuestions에 담기 ★
                         if(validQuestions.length > 0) {
                             finalQuestions.push(validQuestions.pop());
                         }
 
-                        // 뽑고 남은 나머지 문제들은 잉여 풀에 전부 집어넣음
                         remainingPool = remainingPool.concat(validQuestions);
                     });
 
-                    // 20문제를 맞추기 위해 잉여 풀에서 더 뽑아야 할 개수 계산 (전공은 18개, 법은 13개)
                     const neededCount = 20 - finalQuestions.length;
                     
-                    // 잉여 풀을 무작위로 섞은 뒤 필요한 개수만큼 가져와서 최종 배열에 합침
                     remainingPool.sort(() => Math.random() - 0.5);
                     finalQuestions = finalQuestions.concat(remainingPool.slice(0, neededCount));
 
-                    // 맨 처음에 뽑았던 '필수 1문제'들이 항상 1번부터 등장하지 않도록 최종 배열을 마지막으로 다시 섞음
                     finalQuestions.sort(() => Math.random() - 0.5);
 
                     renderQuiz(finalQuestions, `${groupName} 통합`);
@@ -313,7 +345,6 @@
                 });
         }
 
-        // 화면에 렌더링 및 채점 기능
         function renderQuiz(qList, s) {
             if(qList.length === 0) {
                 document.getElementById('quizContainer').innerHTML = '퀴즈 데이터가 없습니다.';
