@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>클라우드 모의고사 - 미니멀 타이머</title>
+    <title>클라우드 모의고사 - 실전 모의고사 순서 고정</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
@@ -13,7 +13,6 @@
         body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; background-color: #f4f7f6; }
         .header { text-align: center; margin-bottom: 20px; }
         
-        /* ★ 화면 우측 상단에 떠 있는(Fixed) 컨테이너로 변경 ★ */
         .floating-container { 
             position: fixed; 
             top: 15px; 
@@ -25,7 +24,6 @@
             gap: 8px; 
         }
         
-        /* ★ 세션 타이머: 작고 심플한 캡슐 형태 ★ */
         .timer-box { 
             display: none; 
             background: rgba(255, 255, 255, 0.95); 
@@ -39,7 +37,6 @@
         .extend-btn { background: #f39c12; color: white; border: none; padding: 4px 10px; border-radius: 12px; cursor: pointer; font-size: 0.85em; font-weight: bold; vertical-align: middle; transition: 0.2s; }
         .extend-btn:hover { background: #d35400; }
 
-        /* ★ 실전 모의고사 타이머: 작게 변경 ★ */
         .exam-timer-box { 
             display: none; 
             background: rgba(255, 255, 255, 0.95); 
@@ -92,13 +89,13 @@
 
     <!-- 우측 상단 플로팅 미니멀 타이머 컨테이너 -->
     <div class="floating-container">
-        <!-- 작아진 60분 연장 타이머 -->
+        <!-- 60분 연장 타이머 -->
         <div id="timerBox" class="timer-box">
             <span id="timerText" class="timer-text">60:00</span>
             <button class="extend-btn" onclick="extendSession()">연장</button>
         </div>
 
-        <!-- 작아진 40분 실전 시험 타이머 -->
+        <!-- 40분 실전 시험 타이머 -->
         <div id="examTimerBox" class="exam-timer-box">
             <span style="font-size:0.9em; font-weight:bold; margin-right:5px; color:#b91c1c; vertical-align:middle;">🔥</span>
             <span id="examTimerText" class="exam-timer-text">40:00</span>
@@ -120,7 +117,7 @@
     </div>
 
     <div id="subjectMenu" class="subject-menu">
-        <button class="subject-btn all-btn-real" onclick="loadRealExam()">🔥 전과목 실전 모의고사 🔥</button>
+        <button class="subject-btn all-btn-real" onclick="loadRealExam()">🔥 실전 모의고사 🔥</button>
 
         <button class="subject-btn all-btn-major" onclick="loadGroupExam('major', '전공')">✈️ 전공 통합 모의고사</button>
         <button class="subject-btn all-btn-law" onclick="loadGroupExam('law', '항공법')">⚖️ 항공법 종합 모의고사</button>
@@ -341,19 +338,26 @@
             });
         }
 
+        // ★ 수정된 실전 모의고사 로직 (항공법 20 -> 전공 20 순서 배치) ★
         function loadRealExam() {
             resetQuizUI();
-            document.getElementById('quizContainer').innerHTML = `<div style="text-align:center; padding:20px; font-weight:bold; color:#c0392b;">전공과 항공법 데이터를 취합하여 실전 시험지를 구성 중입니다... ⏳</div>`;
+            document.getElementById('quizContainer').innerHTML = `<div style="text-align:center; padding:20px; font-weight:bold; color:#c0392b;">항공법과 전공 데이터를 취합하여 실전 시험지를 구성 중입니다... ⏳</div>`;
 
             Promise.all([
-                Promise.all(majorFiles.map(f => fetch(f).then(r => r.text()))),
-                Promise.all(lawFiles.map(f => fetch(f).then(r => r.text())))
-            ]).then(([majorTexts, lawTexts]) => {
-                let majorQuestions = extractQuestions(majorTexts, 20);
+                Promise.all(lawFiles.map(f => fetch(f).then(r => r.text()))),
+                Promise.all(majorFiles.map(f => fetch(f).then(r => r.text())))
+            ]).then(([lawTexts, majorTexts]) => {
                 let lawQuestions = extractQuestions(lawTexts, 20);
-                let finalQuestions = majorQuestions.concat(lawQuestions);
-                finalQuestions.sort(() => Math.random() - 0.5);
-                renderQuiz(finalQuestions, '전과목 실전', true);
+                let majorQuestions = extractQuestions(majorTexts, 20);
+                
+                // 각 과목(파트) 내부적으로만 순서를 섞음
+                lawQuestions.sort(() => Math.random() - 0.5);
+                majorQuestions.sort(() => Math.random() - 0.5);
+                
+                // 전체 섞기를 진행하지 않고 항공법 20문제 바로 뒤에 전공 20문제를 이어 붙임
+                let finalQuestions = lawQuestions.concat(majorQuestions);
+                
+                renderQuiz(finalQuestions, '전과목 실전 (항공법 20 + 전공 20)', true);
             }).catch(error => {
                 alert(`오류: 파일을 읽어오지 못했습니다.`);
             });
