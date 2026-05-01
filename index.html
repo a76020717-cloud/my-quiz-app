@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>클라우드 모의고사 - 실전 모의고사 순서 고정</title>
+    <title>클라우드 모의고사 - 실시간 동기화 완벽 패치</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
@@ -122,16 +122,17 @@
         <button class="subject-btn all-btn-major" onclick="loadGroupExam('major', '전공')">✈️ 전공 통합 모의고사</button>
         <button class="subject-btn all-btn-law" onclick="loadGroupExam('law', '항공법')">⚖️ 항공법 종합 모의고사</button>
 
-        <button class="subject-btn" onclick="loadSubject('공항시설법_8급킬러_100선.csv', '공항시설법')">공항시설법</button>
-        <button class="subject-btn" onclick="loadSubject('항공4법_통합연계_8급킬러_100선.csv', '항공4법 통합연계')">항공4법 통합연계</button>
-        <button class="subject-btn" onclick="loadSubject('항공교통관제절차_8급킬러_100선.csv', '항공교통관제절차')">항공교통관제절차</button>
-        <button class="subject-btn" onclick="loadSubject('항공교통업무기준_8급킬러_100선.csv', '항공교통업무기준')">항공교통업무기준</button>
-        <button class="subject-btn" onclick="loadSubject('항공보안법_8급킬러_100선.csv', '항공보안법')">항공보안법</button>
-        <button class="subject-btn" onclick="loadSubject('항공사업법_8급킬러_100선.csv', '항공사업법')">항공사업법</button>
-        <button class="subject-btn" onclick="loadSubject('항공안전법_8급킬러_100선.csv', '항공안전법')">항공안전법</button>
-        <button class="subject-btn" onclick="loadSubject('항공안전법_2탄_8급킬러_100선.csv', '항공안전법 2탄')">항공안전법 2탄</button>
-        <button class="subject-btn" onclick="loadSubject('항공안전법_3탄_8급킬러_100선.csv', '항공안전법 3탄')">항공안전법 3탄</button>
-        <button class="subject-btn" onclick="loadSubject('항공4법_숫자계산_킬러100선_최종.csv', '숫자계산')">숫자계산</button>
+        <!-- 이전과 동일하게 여러 파일을 배열 형태로 넣거나, 단일 텍스트로 넣어도 모두 작동합니다. -->
+        <button class="subject-btn" onclick="loadSubject(['공항시설법_8급킬러_100선.csv'], '공항시설법')">공항시설법</button>
+        <button class="subject-btn" onclick="loadSubject(['항공4법_통합연계_8급킬러_100선.csv'], '항공4법 통합연계')">항공4법 통합연계</button>
+        <button class="subject-btn" onclick="loadSubject(['항공교통관제절차_8급킬러_100선.csv'], '항공교통관제절차')">항공교통관제절차</button>
+        <button class="subject-btn" onclick="loadSubject(['항공교통업무기준_8급킬러_100선.csv'], '항공교통업무기준')">항공교통업무기준</button>
+        <button class="subject-btn" onclick="loadSubject(['항공보안법_8급킬러_100선.csv'], '항공보안법')">항공보안법</button>
+        <button class="subject-btn" onclick="loadSubject(['항공사업법_8급킬러_100선.csv'], '항공사업법')">항공사업법</button>
+        <button class="subject-btn" onclick="loadSubject(['항공안전법_8급킬러_100선.csv'], '항공안전법')">항공안전법</button>
+        <button class="subject-btn" onclick="loadSubject(['항공안전법_2탄_8급킬러_100선.csv'], '항공안전법 2탄')">항공안전법 2탄</button>
+        <button class="subject-btn" onclick="loadSubject(['항공안전법_3탄_8급킬러_100선.csv'], '항공안전법 3탄')">항공안전법 3탄</button>
+        <button class="subject-btn" onclick="loadSubject(['항공4법_숫자계산_킬러100선_최종.csv'], '숫자계산')">숫자계산</button>
 
     </div>
 
@@ -182,6 +183,12 @@
             '항공4법_숫자계산_킬러100선_최종.csv',
             '항공안전법_3탄_8급킬러_100선.csv'
         ];
+
+        // ★ 해결책: 캐시 무효화 전용 URL 생성 함수 ★
+        function getNoCacheUrl(fileName) {
+            // 파일 이름 뒤에 랜덤한 현재 시간을 붙여 항상 최신 파일을 받아오도록 강제함
+            return fileName + '?t=' + new Date().getTime();
+        }
 
         function startSessionTimer() {
             if (sessionInterval) clearInterval(sessionInterval);
@@ -319,20 +326,44 @@
             return selected;
         }
 
-        function loadSubject(f, s) {
+        // ★ 단일 버튼 다중 파일 지원 + 캐시 무효화 로직 ★
+        function loadSubject(files, s) {
             resetQuizUI();
-            fetch(f).then(res => res.text()).then(txt => {
-                Papa.parse(txt, { header: true, skipEmptyLines: true, complete: res => {
-                    let qList = res.data.filter(r => r['문제'] && r['보기1']).sort(() => Math.random() - 0.5).slice(0, 20);
-                    renderQuiz(qList, s, false);
-                }});
+            
+            // 파일 이름이 하나만 들어왔을 경우 배열로 처리
+            if (!Array.isArray(files)) {
+                files = [files];
+            }
+
+            // 모든 fetch 요청에 getNoCacheUrl 적용하여 항상 최신 파일 로드
+            const fetchPromises = files.map(fileName => fetch(getNoCacheUrl(fileName)).then(r => {
+                if(!r.ok) throw new Error(fileName);
+                return r.text();
+            }));
+
+            Promise.all(fetchPromises).then(csvTexts => {
+                let combinedPool = [];
+                csvTexts.forEach(csvText => {
+                    const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+                    let valid = parsed.data.filter(r => r['문제'] && r['보기1'] && r['정답']);
+                    combinedPool = combinedPool.concat(valid);
+                });
+                
+                combinedPool.sort(() => Math.random() - 0.5);
+                let finalQuestions = combinedPool.slice(0, 20);
+                
+                renderQuiz(finalQuestions, s, false);
+            }).catch(error => {
+                document.getElementById('quizContainer').innerHTML = '';
+                alert(`[오류] '${error.message}' 파일을 찾을 수 없습니다.`);
             });
         }
 
+        // ★ 통합 모의고사 캐시 무효화 적용 ★
         function loadGroupExam(groupType, groupName) {
             resetQuizUI();
             const targetFiles = (groupType === 'major') ? majorFiles : lawFiles;
-            const fetchPromises = targetFiles.map(fileName => fetch(fileName).then(r => r.text()));
+            const fetchPromises = targetFiles.map(fileName => fetch(getNoCacheUrl(fileName)).then(r => r.text()));
 
             Promise.all(fetchPromises).then(csvTexts => {
                 let finalQuestions = extractQuestions(csvTexts, 20);
@@ -341,23 +372,21 @@
             });
         }
 
-        // ★ 수정된 실전 모의고사 로직 (항공법 20 -> 전공 20 순서 배치) ★
+        // ★ 실전 모의고사 캐시 무효화 적용 ★
         function loadRealExam() {
             resetQuizUI();
             document.getElementById('quizContainer').innerHTML = `<div style="text-align:center; padding:20px; font-weight:bold; color:#c0392b;">항공법과 전공 데이터를 취합하여 실전 시험지를 구성 중입니다... ⏳</div>`;
 
             Promise.all([
-                Promise.all(lawFiles.map(f => fetch(f).then(r => r.text()))),
-                Promise.all(majorFiles.map(f => fetch(f).then(r => r.text())))
+                Promise.all(lawFiles.map(f => fetch(getNoCacheUrl(f)).then(r => r.text()))),
+                Promise.all(majorFiles.map(f => fetch(getNoCacheUrl(f)).then(r => r.text())))
             ]).then(([lawTexts, majorTexts]) => {
                 let lawQuestions = extractQuestions(lawTexts, 20);
                 let majorQuestions = extractQuestions(majorTexts, 20);
                 
-                // 각 과목(파트) 내부적으로만 순서를 섞음
                 lawQuestions.sort(() => Math.random() - 0.5);
                 majorQuestions.sort(() => Math.random() - 0.5);
                 
-                // 전체 섞기를 진행하지 않고 항공법 20문제 바로 뒤에 전공 20문제를 이어 붙임
                 let finalQuestions = lawQuestions.concat(majorQuestions);
                 
                 renderQuiz(finalQuestions, '전과목 실전 (항공법 20 + 전공 20)', true);
