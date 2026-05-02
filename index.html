@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>클라우드 모의고사 - 실시간 동기화 완벽 패치</title>
+    <title>클라우드 모의고사 - 5지선다 유연 지원</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
@@ -13,39 +13,13 @@
         body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; background-color: #f4f7f6; }
         .header { text-align: center; margin-bottom: 20px; }
         
-        .floating-container { 
-            position: fixed; 
-            top: 15px; 
-            right: 15px; 
-            z-index: 1000; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: flex-end; 
-            gap: 8px; 
-        }
-        
-        .timer-box { 
-            display: none; 
-            background: rgba(255, 255, 255, 0.95); 
-            border: 1px solid #f39c12; 
-            padding: 6px 12px; 
-            border-radius: 20px; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.15); 
-            backdrop-filter: blur(4px);
-        }
+        .floating-container { position: fixed; top: 15px; right: 15px; z-index: 1000; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+        .timer-box { display: none; background: rgba(255, 255, 255, 0.95); border: 1px solid #f39c12; padding: 6px 12px; border-radius: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.15); backdrop-filter: blur(4px); }
         .timer-text { font-size: 1.05em; font-weight: bold; color: #d35400; margin-right: 8px; vertical-align: middle; font-family: monospace; }
         .extend-btn { background: #f39c12; color: white; border: none; padding: 4px 10px; border-radius: 12px; cursor: pointer; font-size: 0.85em; font-weight: bold; vertical-align: middle; transition: 0.2s; }
         .extend-btn:hover { background: #d35400; }
 
-        .exam-timer-box { 
-            display: none; 
-            background: rgba(255, 255, 255, 0.95); 
-            border: 2px solid #ef4444; 
-            padding: 8px 15px; 
-            border-radius: 20px; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.15); 
-            animation: pulse 2s infinite; 
-        }
+        .exam-timer-box { display: none; background: rgba(255, 255, 255, 0.95); border: 2px solid #ef4444; padding: 8px 15px; border-radius: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.15); animation: pulse 2s infinite; }
         .exam-timer-text { font-size: 1.2em; font-weight: bold; color: #b91c1c; vertical-align: middle; font-family: monospace; letter-spacing: 1px; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
 
@@ -89,13 +63,10 @@
 
     <!-- 우측 상단 플로팅 미니멀 타이머 컨테이너 -->
     <div class="floating-container">
-        <!-- 60분 연장 타이머 -->
         <div id="timerBox" class="timer-box">
             <span id="timerText" class="timer-text">60:00</span>
             <button class="extend-btn" onclick="extendSession()">연장</button>
         </div>
-
-        <!-- 40분 실전 시험 타이머 -->
         <div id="examTimerBox" class="exam-timer-box">
             <span style="font-size:0.9em; font-weight:bold; margin-right:5px; color:#b91c1c; vertical-align:middle;">🔥</span>
             <span id="examTimerText" class="exam-timer-text">40:00</span>
@@ -122,7 +93,6 @@
         <button class="subject-btn all-btn-major" onclick="loadGroupExam('major', '전공')">✈️ 전공 통합 모의고사</button>
         <button class="subject-btn all-btn-law" onclick="loadGroupExam('law', '항공법')">⚖️ 항공법 종합 모의고사</button>
 
-        <!-- 이전과 동일하게 여러 파일을 배열 형태로 넣거나, 단일 텍스트로 넣어도 모두 작동합니다. -->
         <button class="subject-btn" onclick="loadSubject(['공항시설법_8급킬러_100선.csv'], '공항시설법')">공항시설법</button>
         <button class="subject-btn" onclick="loadSubject(['항공4법_통합연계_8급킬러_100선.csv'], '항공4법 통합연계')">항공4법 통합연계</button>
         <button class="subject-btn" onclick="loadSubject(['항공교통관제절차_8급킬러_100선.csv'], '항공교통관제절차')">항공교통관제절차</button>
@@ -134,8 +104,7 @@
         <button class="subject-btn" onclick="loadSubject(['항공안전법_3탄_8급킬러_100선.csv'], '항공안전법 3탄')">항공안전법 3탄</button>
         <button class="subject-btn" onclick="loadSubject(['항공4법_숫자계산_킬러100선_최종.csv'], '숫자계산')">숫자계산</button>
         <button class="subject-btn" onclick="loadSubject(['KAC_공항안전운영_예상문제_100선.csv'], '한국공항공사')">한국공항공사</button>
-
-
+        <button class="subject-btn" onclick="loadSubject(['NCS_예상문제_100선_5지선다.csv'], '한국공항공사 NCS')">한국공항공사 NCS</button>
     </div>
 
     <div id="quizHeader" style="font-weight:bold; font-size:1.3em; text-align:center; margin-bottom:20px; color:#2c3e50;"></div>
@@ -167,7 +136,6 @@
         
         let sessionInterval = null; 
         let sessionEndTime = null;
-
         let examInterval = null;
 
         const majorFiles = [
@@ -186,9 +154,7 @@
             '항공안전법_3탄_8급킬러_100선.csv'
         ];
 
-        // ★ 해결책: 캐시 무효화 전용 URL 생성 함수 ★
         function getNoCacheUrl(fileName) {
-            // 파일 이름 뒤에 랜덤한 현재 시간을 붙여 항상 최신 파일을 받아오도록 강제함
             return fileName + '?t=' + new Date().getTime();
         }
 
@@ -284,6 +250,7 @@
             }
         }
 
+        // ★ 오답노트 화면 5지선다 유연 대응 반영 ★
         function reviewCloudQuiz(index) {
             if (examInterval) clearInterval(examInterval);
             document.getElementById('examTimerBox').style.display = 'none';
@@ -299,11 +266,14 @@
                 if (row['보기박스'] && row['보기박스'].trim() !== '') card.innerHTML += `<div class="statement-box">${row['보기박스']}</div>`;
                 const userAnswer = log.userAnswers[qIdx]; const isCorrect = userAnswer === parseInt(row['정답']);
 
-                for (let i = 1; i <= 4; i++) {
+                // 1번부터 5번 보기까지 체크 (비어있으면 건너뜀)
+                for (let i = 1; i <= 5; i++) {
+                    if (!row[`보기${i}`] || String(row[`보기${i}`]).trim() === '') continue;
+
                     const label = document.createElement('label'); label.className = 'option';
                     if (i === parseInt(row['정답'])) { label.style.border = '2px solid #22c55e'; label.style.background = '#f0fdf4'; }
                     else if (userAnswer === i && !isCorrect) { label.style.border = '2px solid #ef4444'; label.style.background = '#fef2f2'; }
-                    label.innerHTML = `<input type="radio" disabled ${userAnswer === i ? 'checked' : ''}> ${row['보기' + i]}`;
+                    label.innerHTML = `<input type="radio" disabled ${userAnswer === i ? 'checked' : ''}> ${row[`보기${i}`]}`;
                     card.appendChild(label);
                 }
                 card.innerHTML += `<div class="explanation" style="display:block;"><div class="${isCorrect ? 'correct-text' : 'wrong-text'}">${isCorrect ? '⭕ 정답' : '❌ 오답'} (정답: ${row['정답']}번)</div><div>[해설] ${row['해설'] || '없음'}</div></div>`;
@@ -328,16 +298,11 @@
             return selected;
         }
 
-        // ★ 단일 버튼 다중 파일 지원 + 캐시 무효화 로직 ★
         function loadSubject(files, s) {
             resetQuizUI();
             
-            // 파일 이름이 하나만 들어왔을 경우 배열로 처리
-            if (!Array.isArray(files)) {
-                files = [files];
-            }
+            if (!Array.isArray(files)) files = [files];
 
-            // 모든 fetch 요청에 getNoCacheUrl 적용하여 항상 최신 파일 로드
             const fetchPromises = files.map(fileName => fetch(getNoCacheUrl(fileName)).then(r => {
                 if(!r.ok) throw new Error(fileName);
                 return r.text();
@@ -361,7 +326,6 @@
             });
         }
 
-        // ★ 통합 모의고사 캐시 무효화 적용 ★
         function loadGroupExam(groupType, groupName) {
             resetQuizUI();
             const targetFiles = (groupType === 'major') ? majorFiles : lawFiles;
@@ -374,7 +338,6 @@
             });
         }
 
-        // ★ 실전 모의고사 캐시 무효화 적용 ★
         function loadRealExam() {
             resetQuizUI();
             document.getElementById('quizContainer').innerHTML = `<div style="text-align:center; padding:20px; font-weight:bold; color:#c0392b;">항공법과 전공 데이터를 취합하여 실전 시험지를 구성 중입니다... ⏳</div>`;
@@ -405,7 +368,13 @@
             document.getElementById('examTimerBox').style.display = 'none';
         }
 
+        // ★ 시험 출제 화면 5지선다 유연 대응 반영 ★
         function renderQuiz(qList, s, isRealExam) {
+            if(qList.length === 0) {
+                document.getElementById('quizContainer').innerHTML = '퀴즈 데이터가 없습니다.';
+                return;
+            }
+
             document.getElementById('quizHeader').innerText = `📖 [${s}] 모의고사 (총 ${qList.length}문제)`;
             const c = document.getElementById('quizContainer');
             c.innerHTML = '';
@@ -415,8 +384,11 @@
                 card.innerHTML = `<div style="font-weight:bold; margin-bottom:10px;">${i + 1}. ${r['문제']}</div>`;
                 if (r['보기박스'] && r['보기박스'].trim() !== '') card.innerHTML += `<div class="statement-box">${r['보기박스']}</div>`;
 
-                for (let j = 1; j <= 4; j++) {
-                    card.innerHTML += `<label class="option"><input type="radio" name="q_${i}" value="${j}"> ${r['보기' + j]}</label>`;
+                // 1번부터 5번 보기까지 순회하여 값이 있을 때만 화면에 출력
+                for (let j = 1; j <= 5; j++) {
+                    if (r[`보기${j}`] && String(r[`보기${j}`]).trim() !== '') {
+                        card.innerHTML += `<label class="option"><input type="radio" name="q_${i}" value="${j}"> ${r[`보기${j}`]}</label>`;
+                    }
                 }
                 card.innerHTML += `<div class="explanation" id="exp_${i}"></div>`;
                 c.appendChild(card);
