@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>클라우드 모의고사 - 과목 필터 및 선택 삭제</title>
+    <title>클라우드 모의고사 - 선지 랜덤 셔플</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
@@ -45,7 +45,6 @@
         .explanation { display: none; margin-top: 15px; padding: 15px; background: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 4px; line-height: 1.5; }
         .submit-btn { width: 100%; padding: 15px; background-color: #27ae60; color: white; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; font-size: 1.2em; }
         
-        /* 기록 관련 스타일 업데이트 */
         .history-container { display: none; background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .history-item { padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
         .log-checkbox { transform: scale(1.3); margin-right: 15px; cursor: pointer; }
@@ -84,11 +83,9 @@
         <button id="historyBtn" class="login-btn" style="display:none; background:#27ae60; margin-top:10px;" onclick="toggleHistory()">📋 내 학습 기록 및 오답 노트</button>
     </div>
 
-    <!-- ★ 수정된 나의 기록 화면 (과목 필터 및 선택삭제 추가) ★ -->
     <div id="historyContainer" class="history-container">
         <h3 style="text-align:center; margin-top:0;">나의 클라우드 응시 로그</h3>
         
-        <!-- 필터 및 선택/삭제 컨트롤 박스 -->
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; background:#f8f9fa; padding:10px; border-radius:5px; border:1px solid #e9ecef;">
             <div style="display:flex; align-items:center; gap:8px;">
                 <input type="checkbox" id="selectAllCheckbox" onchange="toggleAllCheckboxes()" style="transform:scale(1.3); cursor:pointer;">
@@ -153,7 +150,6 @@
         const db = firebase.firestore();
         let currentUser = null;
         
-        // ★ 필터링을 위한 변수 추가 ★
         let allFetchedLogs = []; 
         let cloudLogs = [];
         
@@ -248,7 +244,6 @@
             else { fetchAndDisplayLogs(); container.style.display = 'block'; }
         }
 
-        // ★ 필터 드롭다운 갱신 및 데이터 불러오기 ★
         function fetchAndDisplayLogs() {
             const listDiv = document.getElementById('historyList');
             listDiv.innerHTML = '불러오는 중...';
@@ -270,7 +265,6 @@
                         subjects.add(log.subject);
                     });
 
-                    // 드롭다운 메뉴에 응시했던 과목들만 모아서 추가
                     const filterSelect = document.getElementById('subjectFilter');
                     const currentFilter = filterSelect.value;
                     filterSelect.innerHTML = '<option value="all">전체 과목 보기</option>';
@@ -288,21 +282,16 @@
                 });
         }
 
-        // ★ 필터 적용하여 화면에 리스트 그리기 ★
         function renderHistoryList() {
             const listDiv = document.getElementById('historyList');
             const filterValue = document.getElementById('subjectFilter').value;
             
-            // 전체선택 체크박스 초기화
             document.getElementById('selectAllCheckbox').checked = false;
-            
             listDiv.innerHTML = '';
-            cloudLogs = []; // 오답노트 연결을 위해 현재 화면에 띄워진 데이터만 재배열
+            cloudLogs = []; 
             
             let displayLogs = allFetchedLogs;
-            if (filterValue !== 'all') {
-                displayLogs = allFetchedLogs.filter(log => log.subject === filterValue);
-            }
+            if (filterValue !== 'all') displayLogs = allFetchedLogs.filter(log => log.subject === filterValue);
 
             if(displayLogs.length === 0) {
                 listDiv.innerHTML = '<p style="text-align:center;">해당 과목의 기록이 없습니다.</p>';
@@ -315,8 +304,6 @@
 
                 const item = document.createElement('div'); 
                 item.className = 'history-item';
-                
-                // 체크박스와 데이터 바인딩
                 item.innerHTML = `
                     <div style="display:flex; align-items:flex-start;">
                         <input type="checkbox" class="log-checkbox" value="${log.docId}">
@@ -335,20 +322,15 @@
             });
         }
 
-        // ★ 전체 선택 기능 ★
         function toggleAllCheckboxes() {
             const isChecked = document.getElementById('selectAllCheckbox').checked;
             const checkboxes = document.querySelectorAll('.log-checkbox');
             checkboxes.forEach(cb => cb.checked = isChecked);
         }
 
-        // ★ 선택된 기록 일괄 삭제 기능 ★
         function deleteSelectedLogs() {
             const checkboxes = document.querySelectorAll('.log-checkbox:checked');
-            if (checkboxes.length === 0) {
-                alert("삭제할 기록을 체크해주세요.");
-                return;
-            }
+            if (checkboxes.length === 0) { alert("삭제할 기록을 체크해주세요."); return; }
             if (!confirm(`선택한 ${checkboxes.length}개의 기록을 삭제하시겠습니까?`)) return;
 
             const listDiv = document.getElementById('historyList');
@@ -391,8 +373,12 @@
                 const card = document.createElement('div'); card.className = 'quiz-card';
                 card.innerHTML = `<div style="font-weight:bold; margin-bottom:10px;">${qIdx + 1}. ${row['문제']}</div>`;
                 if (row['보기박스'] && row['보기박스'].trim() !== '') card.innerHTML += `<div class="statement-box">${row['보기박스']}</div>`;
-                const userAnswer = log.userAnswers[qIdx]; const isCorrect = userAnswer === parseInt(row['정답']);
+                
+                const userAnswer = log.userAnswers[qIdx]; 
+                const isCorrect = userAnswer === parseInt(row['정답']);
+                const correctText = row[`보기${row['정답']}`] || '';
 
+                // 오답노트는 원래 순서(1번~5번)대로 출력
                 for (let i = 1; i <= 5; i++) {
                     if (!row[`보기${i}`] || String(row[`보기${i}`]).trim() === '') continue;
 
@@ -402,7 +388,8 @@
                     label.innerHTML = `<input type="radio" disabled ${userAnswer === i ? 'checked' : ''}> ${row[`보기${i}`]}`;
                     card.appendChild(label);
                 }
-                card.innerHTML += `<div class="explanation" style="display:block;"><div class="${isCorrect ? 'correct-text' : 'wrong-text'}">${isCorrect ? '⭕ 정답' : '❌ 오답'} (정답: ${row['정답']}번)</div><div>[해설] ${row['해설'] || '없음'}</div></div>`;
+                // 해설에 정답 번호와 내용을 함께 명시
+                card.innerHTML += `<div class="explanation" style="display:block;"><div class="${isCorrect ? 'correct-text' : 'wrong-text'}">${isCorrect ? '⭕ 정답' : '❌ 오답'} (정답: ${row['정답']}번 - ${correctText})</div><div>[해설] ${row['해설'] || '없음'}</div></div>`;
                 container.appendChild(card);
             });
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -509,11 +496,23 @@
                 card.innerHTML = `<div style="font-weight:bold; margin-bottom:10px;">${i + 1}. ${r['문제']}</div>`;
                 if (r['보기박스'] && r['보기박스'].trim() !== '') card.innerHTML += `<div class="statement-box">${r['보기박스']}</div>`;
 
+                // ★ 선지 랜덤 셔플 로직 추가 ★
+                let options = [];
                 for (let j = 1; j <= 5; j++) {
                     if (r[`보기${j}`] && String(r[`보기${j}`]).trim() !== '') {
-                        card.innerHTML += `<label class="option"><input type="radio" name="q_${i}" value="${j}"> ${r[`보기${j}`]}</label>`;
+                        // 원래 번호(val)와 보기 텍스트(text)를 세트로 묶어서 배열에 저장
+                        options.push({ val: j, text: r[`보기${j}`] });
                     }
                 }
+                
+                // 뽑은 보기들을 무작위로 섞기
+                options.sort(() => Math.random() - 0.5);
+
+                // 섞인 순서대로 화면에 버튼 생성 (value 값은 원래 번호를 유지)
+                options.forEach(opt => {
+                    card.innerHTML += `<label class="option"><input type="radio" name="q_${i}" value="${opt.val}"> ${opt.text}</label>`;
+                });
+
                 card.innerHTML += `<div class="explanation" id="exp_${i}"></div>`;
                 c.appendChild(card);
             });
@@ -539,8 +538,11 @@
                     uAns.push(val);
                     const isC = val === parseInt(r['정답']);
                     if (isC) score++;
+                    
+                    const correctText = r[`보기${r['정답']}`] || '';
                     const e = document.getElementById(`exp_${i}`);
-                    e.innerHTML = `<div class="${isC ? 'correct-text' : 'wrong-text'}">${isC ? '⭕ 정답' : '❌ 오답'} (정답: ${r['정답']}번)</div>[해설]<br>${r['해설']||'없음'}`;
+                    // 정답 번호와 내용을 함께 보여주어 섞인 선지에서도 헷갈리지 않게 함
+                    e.innerHTML = `<div class="${isC ? 'correct-text' : 'wrong-text'}">${isC ? '⭕ 정답' : '❌ 오답'} (정답: ${r['정답']}번 - ${correctText})</div>[해설]<br>${r['해설']||'없음'}`;
                     e.style.display = 'block';
                     document.querySelectorAll(`input[name="q_${i}"]`).forEach(input => input.disabled = true);
                 });
