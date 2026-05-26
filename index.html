@@ -242,41 +242,30 @@
         }
 
         function fetchAndDisplayLogs() {
-            const listDiv = document.getElementById('historyList');
-            listDiv.innerHTML = '불러오는 중...';
-            db.collection("quizLogs").where("uid", "==", currentUser.uid).orderBy("timestamp", "desc").get()
-                .then(snapshot => {
-                    allFetchedLogs = []; 
-                    let subjects = new Set();
-                    
-                    if (snapshot.empty) { 
-                        listDiv.innerHTML = '<p style="text-align:center;">기록이 없습니다.</p>'; 
-                        document.getElementById('subjectFilter').innerHTML = '<option value="all">전체 과목 보기</option>';
-                        return; 
-                    }
-                    
-                    snapshot.forEach(doc => {
-                        const log = doc.data(); 
-                        log.docId = doc.id; 
-                        allFetchedLogs.push(log);
-                        subjects.add(log.subject);
-                    });
-
-                    const filterSelect = document.getElementById('subjectFilter');
-                    const currentFilter = filterSelect.value;
-                    filterSelect.innerHTML = '<option value="all">전체 과목 보기</option>';
-                    
-                    subjects.forEach(sub => {
-                        const option = document.createElement('option');
-                        option.value = sub;
-                        option.innerText = sub;
-                        filterSelect.appendChild(option);
-                    });
-                    
-                    if(subjects.has(currentFilter)) filterSelect.value = currentFilter;
-
-                    renderHistoryList();
+            db.collection("quizLogs").where("uid", "==", currentUser.uid).orderBy("timestamp", "desc").get().then(snapshot => {
+                allFetchedLogs = [];
+                let subjects = new Set(); // 1. DB에서 가져온 과목명을 담을 리스트 준비
+                
+                snapshot.forEach(doc => {
+                    const log = doc.data();
+                    log.docId = doc.id;
+                    allFetchedLogs.push(log);
+                    if (log.subject) subjects.add(log.subject); // 2. 저장된 과목명을 모두 수집
                 });
+        
+                // 3. 필터 드롭다운 메뉴를 새로 생성
+                const filterSelect = document.getElementById('subjectFilter');
+                filterSelect.innerHTML = '<option value="all">전체 과목 보기</option>';
+                
+                subjects.forEach(sub => {
+                    const o = document.createElement('option');
+                    o.value = sub;
+                    o.innerText = sub;
+                    filterSelect.appendChild(o);
+                });
+                
+                renderHistoryList(); // 리스트 화면 갱신
+            });
         }
 
         function renderHistoryList() {
@@ -548,9 +537,15 @@
                 const finalScore = score * pointPerQuestion;
 
                 db.collection("quizLogs").add({
-                    uid: currentUser.uid, timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                    dateString: new Date().toLocaleString(), subject: s, correct: score, total: qList.length, score: finalScore,
-                    questions: qList, userAnswers: uAns
+                    uid: currentUser.uid,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    dateString: new Date().toLocaleString(),
+                    subject: s, // 여기에 '전공 통합', '항공법 종합', '전과목 실전'이 정확히 담겨야 합니다.
+                    correct: score,
+                    total: qList.length,
+                    score: (score / qList.length) * 100,
+                    questions: qList,
+                    userAnswers: uAns
                 });
                 alert(`채점 완료! 총 ${finalScore}점 입니다.\n결과가 클라우드에 저장되었습니다.`);
                 btn.style.display = 'none';
