@@ -546,7 +546,7 @@
                 const safeAnswers = JSON.parse(JSON.stringify(uAns));
 
                 // .then().catch() 를 명확히 하여 에러 시 알림 발생
-                db.collection("quizLogs").add({
+                const logData = {
                     uid: currentUser.uid, 
                     timestamp: firebase.firestore.FieldValue.serverTimestamp(),
                     dateString: new Date().toLocaleString(), 
@@ -554,16 +554,28 @@
                     correct: score, 
                     total: qList.length, 
                     score: finalScore,
-                    questions: safeQuestions, 
-                    userAnswers: safeAnswers
-                }).then(() => {
-                    alert(`채점 완료! 총 ${finalScore}점 입니다.\n결과가 클라우드에 저장되었습니다.`);
-                    btn.style.display = 'none';
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                }).catch(err => {
-                    alert("기록 저장 중 서버 오류가 발생했습니다.\n에러 내용: " + err.message);
-                });
-            };
+                    questions: qList.map(q => {
+                        // 빈 필드가 있으면 null로 치환하여 Firebase 에러 방지
+                        let cleanQ = {};
+                        for (let key in q) {
+                            cleanQ[key] = (q[key] === "" || q[key] === null) ? "내용 없음" : q[key];
+                        }
+                        return cleanQ;
+                    }),
+                    userAnswers: uAns
+                };
+
+    db.collection("quizLogs").add(logData)
+    .then(() => {
+        alert(`채점 완료! 총 ${finalScore}점 입니다.\n결과가 클라우드에 저장되었습니다.`);
+        btn.style.display = 'none';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    })
+    .catch(err => {
+        console.error("저장 실패 상세:", err);
+        alert("기록 저장 중 오류 발생: " + err.message);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
 
             btn.onclick = () => submitExamLogic(false);
 
