@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>클라우드 모의고사 - 선지 랜덤 셔플</title>
+    <title>클라우드 모의고사 - 오답노트 완벽 연동</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    <!-- 테스트 -->
     
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; background-color: #f4f7f6; }
@@ -65,7 +64,6 @@
         <h1>☁️ 프라이빗 실전 모의고사</h1>
     </div>
 
-    <!-- 우측 상단 플로팅 미니멀 타이머 컨테이너 -->
     <div class="floating-container">
         <div id="timerBox" class="timer-box">
             <span id="timerText" class="timer-text">60:00</span>
@@ -107,11 +105,11 @@
 
     <div id="subjectMenu" class="subject-menu">
         <button class="subject-btn all-btn-real" onclick="loadRealExam()">🔥 실전 모의고사 🔥</button>
-
-        <button class="subject-btn all-btn-major" onclick="loadGroupExam('major', '전공')">✈️ 전공 통합 모의고사</button>
-        <button class="subject-btn all-btn-law" onclick="loadGroupExam('law', '항공법')">⚖️ 항공법 종합 모의고사</button>
+        <button class="subject-btn all-btn-major" onclick="loadGroupExam('major', '전공 통합 모의고사')">✈️ 전공 통합 모의고사</button>
+        <button class="subject-btn all-btn-law" onclick="loadGroupExam('law', '항공법 통합 모의고사')">⚖️ 항공법 통합 모의고사</button>
 
         <button class="subject-btn" onclick="loadSubject(['공항시설법_8급킬러_100선.csv'], '공항시설법')">공항시설법</button>
+        <button class="subject-btn" onclick="loadSubject(['항공4법_통합연계_8급킬러_100선.csv'], '항공4법 통합연계')">항공4법 통합연계</button>
         <button class="subject-btn" onclick="loadSubject(['항공교통관제절차_8급킬러_100선.csv'], '항공교통관제절차')">항공교통관제절차</button>
         <button class="subject-btn" onclick="loadSubject(['항공교통업무기준_8급킬러_100선.csv'], '항공교통업무기준')">항공교통업무기준</button>
         <button class="subject-btn" onclick="loadSubject(['항공보안법_8급킬러_100선.csv'], '항공보안법')">항공보안법</button>
@@ -260,7 +258,7 @@
                         const log = doc.data(); 
                         log.docId = doc.id; 
                         allFetchedLogs.push(log);
-                        subjects.add(log.subject);
+                        if (log.subject) subjects.add(log.subject);
                     });
 
                     const filterSelect = document.getElementById('subjectFilter');
@@ -376,7 +374,6 @@
                 const isCorrect = userAnswer === parseInt(row['정답']);
                 const correctText = row[`보기${row['정답']}`] || '';
 
-                // 오답노트는 원래 순서(1번~5번)대로 출력
                 for (let i = 1; i <= 5; i++) {
                     if (!row[`보기${i}`] || String(row[`보기${i}`]).trim() === '') continue;
 
@@ -386,7 +383,6 @@
                     label.innerHTML = `<input type="radio" disabled ${userAnswer === i ? 'checked' : ''}> ${row[`보기${i}`]}`;
                     card.appendChild(label);
                 }
-                // 해설에 정답 번호와 내용을 함께 명시
                 card.innerHTML += `<div class="explanation" style="display:block;"><div class="${isCorrect ? 'correct-text' : 'wrong-text'}">${isCorrect ? '⭕ 정답' : '❌ 오답'} (정답: ${row['정답']}번 - ${correctText})</div><div>[해설] ${row['해설'] || '없음'}</div></div>`;
                 container.appendChild(card);
             });
@@ -437,6 +433,7 @@
             });
         }
 
+        // 수정 1: 통합 모의고사 실행 시 넘어온 그룹 이름(groupName)을 왜곡 없이 그대로 전달
         function loadGroupExam(groupType, groupName) {
             resetQuizUI();
             const targetFiles = (groupType === 'major') ? majorFiles : lawFiles;
@@ -445,10 +442,11 @@
             Promise.all(fetchPromises).then(csvTexts => {
                 let finalQuestions = extractQuestions(csvTexts, 20);
                 finalQuestions.sort(() => Math.random() - 0.5);
-                renderQuiz(finalQuestions, `${groupName} 통합`, false);
+                renderQuiz(finalQuestions, groupName, false);
             });
         }
 
+        // 수정 2: 실전 모의고사 이름 명확히 통일
         function loadRealExam() {
             resetQuizUI();
             document.getElementById('quizContainer').innerHTML = `<div style="text-align:center; padding:20px; font-weight:bold; color:#c0392b;">항공법과 전공 데이터를 취합하여 실전 시험지를 구성 중입니다... ⏳</div>`;
@@ -465,7 +463,7 @@
                 
                 let finalQuestions = lawQuestions.concat(majorQuestions);
                 
-                renderQuiz(finalQuestions, '전과목 실전 (항공법 20 + 전공 20)', true);
+                renderQuiz(finalQuestions, '실전 모의고사', true);
             }).catch(error => {
                 alert(`오류: 파일을 읽어오지 못했습니다.`);
             });
@@ -494,19 +492,15 @@
                 card.innerHTML = `<div style="font-weight:bold; margin-bottom:10px;">${i + 1}. ${r['문제']}</div>`;
                 if (r['보기박스'] && r['보기박스'].trim() !== '') card.innerHTML += `<div class="statement-box">${r['보기박스']}</div>`;
 
-                // ★ 선지 랜덤 셔플 로직 추가 ★
                 let options = [];
                 for (let j = 1; j <= 5; j++) {
                     if (r[`보기${j}`] && String(r[`보기${j}`]).trim() !== '') {
-                        // 원래 번호(val)와 보기 텍스트(text)를 세트로 묶어서 배열에 저장
                         options.push({ val: j, text: r[`보기${j}`] });
                     }
                 }
                 
-                // 뽑은 보기들을 무작위로 섞기
                 options.sort(() => Math.random() - 0.5);
 
-                // 섞인 순서대로 화면에 버튼 생성 (value 값은 원래 번호를 유지)
                 options.forEach(opt => {
                     card.innerHTML += `<label class="option"><input type="radio" name="q_${i}" value="${opt.val}"> ${opt.text}</label>`;
                 });
@@ -539,7 +533,6 @@
                     
                     const correctText = r[`보기${r['정답']}`] || '';
                     const e = document.getElementById(`exp_${i}`);
-                    // 정답 번호와 내용을 함께 보여주어 섞인 선지에서도 헷갈리지 않게 함
                     e.innerHTML = `<div class="${isC ? 'correct-text' : 'wrong-text'}">${isC ? '⭕ 정답' : '❌ 오답'} (정답: ${r['정답']}번 - ${correctText})</div>[해설]<br>${r['해설']||'없음'}`;
                     e.style.display = 'block';
                     document.querySelectorAll(`input[name="q_${i}"]`).forEach(input => input.disabled = true);
@@ -548,14 +541,28 @@
                 const pointPerQuestion = 100 / qList.length;
                 const finalScore = score * pointPerQuestion;
 
+                // 수정 3: undefined로 인한 Firebase 저장 에러 원천 차단
+                const safeQuestions = JSON.parse(JSON.stringify(qList));
+                const safeAnswers = JSON.parse(JSON.stringify(uAns));
+
+                // .then().catch() 를 명확히 하여 에러 시 알림 발생
                 db.collection("quizLogs").add({
-                    uid: currentUser.uid, timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                    dateString: new Date().toLocaleString(), subject: s, correct: score, total: qList.length, score: finalScore,
-                    questions: qList, userAnswers: uAns
+                    uid: currentUser.uid, 
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    dateString: new Date().toLocaleString(), 
+                    subject: s, 
+                    correct: score, 
+                    total: qList.length, 
+                    score: finalScore,
+                    questions: safeQuestions, 
+                    userAnswers: safeAnswers
+                }).then(() => {
+                    alert(`채점 완료! 총 ${finalScore}점 입니다.\n결과가 클라우드에 저장되었습니다.`);
+                    btn.style.display = 'none';
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }).catch(err => {
+                    alert("기록 저장 중 서버 오류가 발생했습니다.\n에러 내용: " + err.message);
                 });
-                alert(`채점 완료! 총 ${finalScore}점 입니다.\n결과가 클라우드에 저장되었습니다.`);
-                btn.style.display = 'none';
-                window.scrollTo({ top: 0, behavior: 'smooth' });
             };
 
             btn.onclick = () => submitExamLogic(false);
