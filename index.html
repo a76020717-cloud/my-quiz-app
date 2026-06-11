@@ -14,10 +14,6 @@
         .header { text-align: center; margin-bottom: 20px; }
         
         .floating-container { position: fixed; top: 15px; right: 15px; z-index: 1000; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
-        .timer-box { display: none; background: rgba(255, 255, 255, 0.95); border: 1px solid #f39c12; padding: 6px 12px; border-radius: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.15); backdrop-filter: blur(4px); }
-        .timer-text { font-size: 1.05em; font-weight: bold; color: #d35400; margin-right: 8px; vertical-align: middle; font-family: monospace; }
-        .extend-btn { background: #f39c12; color: white; border: none; padding: 4px 10px; border-radius: 12px; cursor: pointer; font-size: 0.85em; font-weight: bold; vertical-align: middle; transition: 0.2s; }
-        .extend-btn:hover { background: #d35400; }
 
         .exam-timer-box { display: none; background: rgba(255, 255, 255, 0.95); border: 2px solid #ef4444; padding: 8px 15px; border-radius: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.15); animation: pulse 2s infinite; }
         .exam-timer-text { font-size: 1.2em; font-weight: bold; color: #b91c1c; vertical-align: middle; font-family: monospace; letter-spacing: 1px; }
@@ -65,10 +61,6 @@
     </div>
 
     <div class="floating-container">
-        <div id="timerBox" class="timer-box">
-            <span id="timerText" class="timer-text">60:00</span>
-            <button class="extend-btn" onclick="extendSession()">연장</button>
-        </div>
         <div id="examTimerBox" class="exam-timer-box">
             <span style="font-size:0.9em; font-weight:bold; margin-right:5px; color:#b91c1c; vertical-align:middle;">🔥</span>
             <span id="examTimerText" class="exam-timer-text">40:00</span>
@@ -147,9 +139,6 @@
         
         let allFetchedLogs = []; 
         let cloudLogs = [];
-        
-        let sessionInterval = null; 
-        let sessionEndTime = null;
         let examInterval = null;
 
         const majorFiles = [
@@ -172,32 +161,6 @@
             return fileName + '?t=' + new Date().getTime();
         }
 
-        function startSessionTimer() {
-            if (sessionInterval) clearInterval(sessionInterval);
-            sessionEndTime = Date.now() + (60 * 60 * 1000);
-            updateTimerDisplay(); 
-            sessionInterval = setInterval(updateTimerDisplay, 1000);
-        }
-
-        function updateTimerDisplay() {
-            const remainTime = sessionEndTime - Date.now();
-            if (remainTime <= 0) {
-                clearInterval(sessionInterval);
-                document.getElementById('timerText').innerText = "00:00";
-                alert("1시간이 경과하여 자동으로 로그아웃 되었습니다.");
-                signOut();
-                return;
-            }
-            const minutes = Math.floor(remainTime / (1000 * 60));
-            const seconds = Math.floor((remainTime % (1000 * 60)) / 1000);
-            document.getElementById('timerText').innerText = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-        }
-
-        function extendSession() {
-            startSessionTimer();
-            alert("로그인 시간이 60분 연장되었습니다.");
-        }
-
         auth.onAuthStateChanged(user => {
             if (user) {
                 if (!allowedEmails.includes(user.email)) {
@@ -210,14 +173,9 @@
                 document.getElementById('logoutBtn').style.display = 'inline-block';
                 document.getElementById('historyBtn').style.display = 'inline-block';
                 document.getElementById('subjectMenu').style.display = 'flex';
-                
-                document.getElementById('timerBox').style.display = 'block';
-                startSessionTimer(); 
             } else {
                 currentUser = null;
-                if (sessionInterval) clearInterval(sessionInterval);
                 if (examInterval) clearInterval(examInterval);
-                document.getElementById('timerBox').style.display = 'none';
                 document.getElementById('examTimerBox').style.display = 'none';
                 
                 document.getElementById('userInfo').innerText = '승인된 계정으로만 로그인할 수 있습니다.';
@@ -432,7 +390,6 @@
             });
         }
 
-        // 수정 1: 통합 모의고사 실행 시 넘어온 그룹 이름(groupName)을 왜곡 없이 그대로 전달
         function loadGroupExam(groupType, groupName) {
             resetQuizUI();
             const targetFiles = (groupType === 'major') ? majorFiles : lawFiles;
@@ -445,7 +402,6 @@
             });
         }
 
-        // 수정 2: 실전 모의고사 이름 명확히 통일
         function loadRealExam() {
             resetQuizUI();
             document.getElementById('quizContainer').innerHTML = `<div style="text-align:center; padding:20px; font-weight:bold; color:#c0392b;">항공법과 전공 데이터를 취합하여 실전 시험지를 구성 중입니다... ⏳</div>`;
@@ -540,11 +496,9 @@
                 const pointPerQuestion = 100 / qList.length;
                 const finalScore = score * pointPerQuestion;
 
-                // 수정 3: undefined로 인한 Firebase 저장 에러 원천 차단
                 const safeQuestions = JSON.parse(JSON.stringify(qList));
                 const safeAnswers = JSON.parse(JSON.stringify(uAns));
 
-                // .then().catch() 를 명확히 하여 에러 시 알림 발생
                 db.collection("quizLogs").add({
                     uid: currentUser.uid, 
                     timestamp: firebase.firestore.FieldValue.serverTimestamp(),
