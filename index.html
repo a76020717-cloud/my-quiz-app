@@ -106,7 +106,8 @@
         <button class="subject-btn" onclick="loadSubject(['항공안전법_8급킬러_100선.csv', '항공안전법_2탄_8급킬러_100선.csv'], '항공안전법')">항공안전법</button>
         <button class="subject-btn" onclick="loadSubject(['항공안전법_3탄_8급킬러_100선.csv', '항공안전법_4탄_8급킬러_100선.csv'], '항공안전법 2탄')">항공안전법 2탄</button>
         <button class="subject-btn" onclick="loadSubject(['항공4법_숫자계산_킬러100선_최종.csv'], '숫자계산')">숫자계산</button>
-        <button class="subject-btn" onclick="loadSubject(['2026_상반기_전공_기출.csv', '2026_상반기_항공법_기출.csv'], '2026 상반기')">2026 상반기</button>
+        <!-- 2026 상반기 버튼 변경 부분 -->
+        <button class="subject-btn" onclick="loadSequentialExam(['2026_상반기_전공_기출.csv', '2026_상반기_항공법_기출.csv'], '2026 상반기')">2026 상반기</button>
     </div>
 
     <div id="quizHeader" style="font-weight:bold; font-size:1.3em; text-align:center; margin-bottom:20px; color:#2c3e50;"></div>
@@ -386,6 +387,35 @@
                 
                 combinedPool.sort(() => Math.random() - 0.5);
                 let finalQuestions = combinedPool.slice(0, 20);
+                
+                renderQuiz(finalQuestions, s, false);
+            }).catch(error => {
+                document.getElementById('quizContainer').innerHTML = '';
+                alert(`[오류] '${error.message}' 파일을 찾을 수 없습니다.`);
+            });
+        }
+
+        // 새롭게 추가된 함수: 문제를 섞지 않고 파일 순서대로 최대 40개 표출
+        function loadSequentialExam(files, s) {
+            resetQuizUI();
+            
+            if (!Array.isArray(files)) files = [files];
+
+            const fetchPromises = files.map(fileName => fetch(getNoCacheUrl(fileName)).then(r => {
+                if(!r.ok) throw new Error(fileName);
+                return r.text();
+            }));
+
+            Promise.all(fetchPromises).then(csvTexts => {
+                let combinedPool = [];
+                csvTexts.forEach(csvText => {
+                    const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+                    let valid = parsed.data.filter(r => r['문제'] && r['보기1'] && r['정답']);
+                    combinedPool = combinedPool.concat(valid);
+                });
+                
+                // 셔플 로직 제거, 순서 유지하여 최대 40문제 표출
+                let finalQuestions = combinedPool.slice(0, 40); 
                 
                 renderQuiz(finalQuestions, s, false);
             }).catch(error => {
