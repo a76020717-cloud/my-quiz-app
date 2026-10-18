@@ -637,7 +637,29 @@
         }
 
         window.onscroll = () => { document.getElementById("scrollTopBtn").style.display = (window.scrollY > 100) ? "block" : "none"; };
-        function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }
+        function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); };
+        // 제목 클릭 시 초기화면으로 돌아가는 함수
+        function goHome() {
+            // 실전 모의고사 타이머가 돌아가고 있다면 종료 여부를 한 번 물어봄 (실수 방지)
+            if (examInterval && !confirm("진행 중인 시험이 있습니다. 초기화면으로 돌아가시겠습니까?")) {
+                return;
+            }
+            
+            // 타이머 초기화 및 숨김
+            if (examInterval) {
+                clearInterval(examInterval);
+                examInterval = null;
+            }
+            document.getElementById('examTimerBox').style.display = 'none';
+            
+            // 열려있는 오답노트, 문제 헤더, 문제 목록 모두 비우기
+            document.getElementById('historyContainer').style.display = 'none';
+            document.getElementById('quizHeader').innerText = '';
+            document.getElementById('quizContainer').innerHTML = '';
+            
+            // 화면 맨 위로 부드럽게 이동
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
     </script>
 </body>
 </html>
