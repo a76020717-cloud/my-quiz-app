@@ -10,7 +10,14 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     
     <style>
-        body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; background-color: #f4f7f6; }
+        body { 
+            font-family: 'Malgun Gothic', sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; background-color: #f4f7f6; 
+            /* 드래그 및 복사 방지 */
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
         .header { text-align: center; margin-bottom: 20px; }
         
         .floating-container { position: fixed; top: 15px; right: 15px; z-index: 1000; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
@@ -76,7 +83,7 @@
             <div class="notice-header">
                 📢 공지사항 안내
             </div>
-<div class="notice-body">
+            <div class="notice-body">
                 <p style="margin-top:0; font-size:1.05em; color:#2c3e50;"><strong>[모의고사 전면 개편 안내]</strong></p>
                 <ul style="padding-left: 20px; margin-bottom: 0;">
                     <li><strong>전 과목 문제 전면 개편:</strong> 최신 출제 경향과 개정 법령을 반영하여 전체 문제를 새롭게 단장했습니다.</li>
@@ -93,7 +100,7 @@
     </div>
 
     <div class="header">
-        <h1 onclick="goHome()" style="cursor: pointer; display: inline-block; margin: 0;" title="초기화면으로 이동">☁️ 관제8급 실전 모의고사</h1>
+        <h1 onclick="goHome()" style="cursor: pointer; display: inline-block; margin: 0;" title="초기화면으로 이동">☁️ 프라이빗 실전 모의고사</h1>
     </div>
 
     <div class="floating-container">
@@ -140,7 +147,6 @@
         <button class="subject-btn" onclick="loadSubject(['항공보안법_1.csv', '항공보안법_2.csv'], '항공보안법')">항공보안법</button>
         <button class="subject-btn" onclick="loadSubject(['항공사업법_1.csv', '항공사업법_2.csv'], '항공사업법')">항공사업법</button>
         <button class="subject-btn" onclick="loadSubject(['항공안전법_1.csv', '항공안전법_2.csv'], '항공안전법')">항공안전법</button>
-        <button class="subject-btn" onclick="loadSubject(['항공교통관제절차_1.csv'], '항공교통관제절차')">항공교통관제절차</button>
         <!-- 2026 상반기 버튼 변경 부분 -->
         <button class="subject-btn" onclick="loadSequentialExam(['2026_상반기_항공법_기출.csv', '2026_상반기_전공_기출.csv'], '2026 상반기')">2026 상반기</button>
     </div>
@@ -227,6 +233,24 @@
         }
         // ------------------------------
 
+        // --- 제목 클릭 시 초기화면 복귀 함수 ---
+        function goHome() {
+            if (!currentUser) return;
+            if (examInterval && !confirm("진행 중인 시험이 있습니다. 초기화면으로 돌아가시겠습니까?")) {
+                return;
+            }
+            if (examInterval) {
+                clearInterval(examInterval);
+                examInterval = null;
+            }
+            document.getElementById('examTimerBox').style.display = 'none';
+            document.getElementById('historyContainer').style.display = 'none';
+            document.getElementById('quizHeader').innerText = '';
+            document.getElementById('quizContainer').innerHTML = '';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        // ------------------------------
+
         auth.onAuthStateChanged(user => {
             if (user) {
                 if (!allowedEmails.includes(user.email)) {
@@ -244,7 +268,10 @@
                 checkNoticePopup();
             } else {
                 currentUser = null;
-                if (examInterval) clearInterval(examInterval);
+                if (examInterval) {
+                    clearInterval(examInterval);
+                    examInterval = null;
+                }
                 document.getElementById('examTimerBox').style.display = 'none';
                 document.getElementById('noticeOverlay').style.display = 'none';
                 
@@ -384,7 +411,10 @@
         }
 
         function reviewCloudQuiz(index) {
-            if (examInterval) clearInterval(examInterval);
+            if (examInterval) {
+                clearInterval(examInterval);
+                examInterval = null;
+            }
             document.getElementById('examTimerBox').style.display = 'none';
             const log = cloudLogs[index];
             document.getElementById('historyContainer').style.display = 'none';
@@ -527,7 +557,10 @@
             document.getElementById('historyContainer').style.display = 'none';
             document.getElementById('quizHeader').innerText = '';
             document.getElementById('quizContainer').innerHTML = '<div style="text-align:center; padding:20px; font-weight:bold;">문제를 불러오고 있습니다... ⏳</div>';
-            if (examInterval) clearInterval(examInterval);
+            if (examInterval) {
+                clearInterval(examInterval);
+                examInterval = null;
+            }
             document.getElementById('examTimerBox').style.display = 'none';
         }
 
@@ -574,7 +607,10 @@
                     if(!isAllChecked && !confirm("선택하지 않은 문제가 있습니다. 이대로 제출하시겠습니까?")) return;
                 }
 
-                if (examInterval) clearInterval(examInterval);
+                if (examInterval) {
+                    clearInterval(examInterval);
+                    examInterval = null;
+                }
                 document.getElementById('examTimerBox').style.display = 'none';
 
                 let score = 0, uAns = [];
@@ -628,6 +664,7 @@
                     remainSeconds--;
                     if (remainSeconds <= 0) {
                         clearInterval(examInterval);
+                        examInterval = null;
                         alert("⏱️ 40분 시험 시간이 모두 종료되었습니다.\n선택하신 답안까지만 자동으로 제출됩니다.");
                         submitExamLogic(true); 
                     } else {
@@ -640,29 +677,48 @@
         }
 
         window.onscroll = () => { document.getElementById("scrollTopBtn").style.display = (window.scrollY > 100) ? "block" : "none"; };
-        function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); };
-        // 제목 클릭 시 초기화면으로 돌아가는 함수
-        function goHome() {
-            // 실전 모의고사 타이머가 돌아가고 있다면 종료 여부를 한 번 물어봄 (실수 방지)
-            if (examInterval && !confirm("진행 중인 시험이 있습니다. 초기화면으로 돌아가시겠습니까?")) {
-                return;
+        function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }
+
+        // --- 보안 및 개발자 도구(F12) 차단 로직 ---
+        // 1. 마우스 우클릭 방지
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+
+        // 2. 개발자 도구 및 소스 보기 단축키 방지
+        document.addEventListener('keydown', function(e) {
+            // F12 차단
+            if (e.key === 'F12' || e.keyCode === 123) {
+                e.preventDefault();
+                return false;
             }
-            
-            // 타이머 초기화 및 숨김
-            if (examInterval) {
-                clearInterval(examInterval);
-                examInterval = null;
+            // Ctrl + Shift + I / J / C 차단
+            if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) {
+                e.preventDefault();
+                return false;
             }
-            document.getElementById('examTimerBox').style.display = 'none';
-            
-            // 열려있는 오답노트, 문제 헤더, 문제 목록 모두 비우기
-            document.getElementById('historyContainer').style.display = 'none';
-            document.getElementById('quizHeader').innerText = '';
-            document.getElementById('quizContainer').innerHTML = '';
-            
-            // 화면 맨 위로 부드럽게 이동
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+            // Ctrl + U (소스 보기), Ctrl + S (저장) 차단
+            if (e.ctrlKey && (e.key === 'U' || e.key === 'u' || e.key === 'S' || e.key === 's')) {
+                e.preventDefault();
+                return false;
+            }
+            // Mac 단축키 (Cmd + Option + I / J / C / U) 차단
+            if (e.metaKey && e.altKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c' || e.key === 'U' || e.key === 'u')) {
+                e.preventDefault();
+                return false;
+            }
+        });
+
+        // 3. 브라우저 메뉴 등으로 강제로 개발자 도구를 열었을 때 작동 방해
+        setInterval(function() {
+            const before = new Date().getTime();
+            debugger; 
+            const after = new Date().getTime();
+            if (after - before > 100) {
+                document.body.innerHTML = "<h2 style='text-align:center; margin-top:50px;'>보안을 위해 개발자 도구 사용이 제한되어 있습니다.<br>개발자 도구를 닫고 새로고침 해주세요.</h2>";
+            }
+        }, 1000);
+        // ----------------------------------------
     </script>
 </body>
 </html>
