@@ -177,11 +177,11 @@
                 📢 공지사항 안내
             </div>
             <div class="notice-body">
-                <p style="margin-top:0; font-size:1.05em; color:#2c3e50;"><strong>[모의고사 전면 개편 안내]</strong></p>
+                <p style="margin-top:0; font-size:1.05em; color:#2c3e50;"><strong>[2026년 하반기 시험 대비 모의고사 안내]</strong></p>
                 <ul style="padding-left: 20px; margin-bottom: 0;">
                     <li><strong>전 과목 문제 전면 개편:</strong> 최신 출제 경향과 개정 법령을 반영하여 전체 문제를 새롭게 단장했습니다.</li>
-                    <li><strong>과목 신설 및 폐지 안내:</strong> <span style="color:#2980b9; font-weight:bold;">항공교통업무 매뉴얼</span>이 신규 제정·고시됨에 따라, 기존의 <strong>항공교통관제절차</strong> 과목은 폐지되었습니다.</li>
-                    <li><strong>전공 통합 모의고사 구성 안내:</strong> 전공 모의고사는 <span style="color:#c0392b; font-weight:bold;">항공교통업무 매뉴얼</span>과 <span style="color:#c0392b; font-weight:bold;">항공교통업무기준</span> 두 가지 과목이 모두 포함되어 출제됩니다.</li>
+                    <li><strong>전공 통합 모의고사 구성 안내:</strong> 2026년 하반기 임용시험의 전공 과목이 <strong>항공교통관제절차</strong>를 기반으로 출제됨에 따라, 현재 전공 통합 모의고사에는 <span style="color:#c0392b; font-weight:bold;">항공교통관제절차</span> 문제만 포함되어 출제됩니다.</li>
+                    <li><strong>개별 전공 과목 분리 운영:</strong> <span style="color:#2980b9; font-weight:bold;">항공교통업무 매뉴얼</span> 및 <span style="color:#2980b9; font-weight:bold;">항공교통업무기준</span> 문제는 필요에 따라 선택하여 학습하실 수 있도록 별도의 단일 과목 메뉴로 분리해 두었습니다.</li>
                 </ul>
             </div>
             <div class="notice-footer">
@@ -239,6 +239,7 @@
         <button class="subject-btn" onclick="loadSubject(['항공보안법_1.csv', '항공보안법_2.csv'], '항공보안법')">항공보안법</button>
         <button class="subject-btn" onclick="loadSubject(['항공사업법_1.csv', '항공사업법_2.csv'], '항공사업법')">항공사업법</button>
         <button class="subject-btn" onclick="loadSubject(['항공안전법_1.csv', '항공안전법_2.csv'], '항공안전법')">항공안전법</button>
+        <button class="subject-btn" onclick="loadSubject(['항공교통관제절차_1.csv', '항공교통관제절차_2.csv'], '항공교통관제절차')">항공교통관제절차</button>
         <button class="subject-btn" onclick="loadSubject(['항공교통업무기준_1.csv', '항공교통업무기준_2.csv'], '항공교통업무기준')">항공교통업무기준</button>
         <button class="subject-btn" onclick="loadSubject(['항공교통업무_매뉴얼_1.csv', '항공교통업무_매뉴얼_2.csv'], '항공교통업무매뉴얼')">항공교통업무매뉴얼</button>
         <!-- 2026 상반기 버튼 변경 부분 -->
@@ -278,10 +279,8 @@
         let examInterval = null;
 
         const majorFiles = [
-            '항공교통업무기준_1.csv',
-            '항공교통업무기준_2.csv',
-            '항공교통업무_매뉴얼_1.csv',
-            '항공교통업무_매뉴얼_2.csv'
+            '항공교통관제절차_1.csv',
+            '항공교통관제절차_2.csv'
         ];
 
         const lawFiles = [
